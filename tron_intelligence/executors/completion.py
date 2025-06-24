@@ -14,7 +14,7 @@ class CompletionExecutor(BaseExecutor):
         tool_manager: Optional[ToolManager] = None,
         prompt_kwargs: dict = {},
     ) -> pydantic.BaseModel:
-        return await self.client.fcall(
+        return self.client.fcall(
             user_query=user_query,
             system_prompt=system_prompt,
             tool_manager=tool_manager,

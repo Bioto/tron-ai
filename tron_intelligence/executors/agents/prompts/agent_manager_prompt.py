@@ -74,6 +74,7 @@ The task execution system will:
 - Track task completion status
 - Manage dependencies between tasks
 - Handle errors and retries
+- Stop execution and return empty results if any task returns empty data
 
 Your response must include:
 1. If the query is trivial and can be answered directly, provide the answer in the response field and leave the tasks list empty.
@@ -81,6 +82,11 @@ Your response must include:
 3. Clear operation sequences within each task
 4. Dependencies if needed
 5. Expected outputs from each task
+
+IMPORTANT: If any task execution returns empty results (e.g., no containers found, no files found, empty search results), you should:
+- Return an empty tasks list in your final response
+- Include a clear message in the response field explaining what was found to be empty
+- Do not continue creating additional tasks if a prerequisite task returns empty results
 
 Note: The agent assignment will be handled automatically by the system based on the operations.
 Do not specify the agent in your response, just list the operations needed.

@@ -39,7 +39,7 @@ class PromptMeta(BaseModel):
 
 
 class ToolCall(BaseModel):
-    func_name: str = Field(description="The name of the tool called.")
+    name: str = Field(description="The name of the tool called.")
     args: List[str] = Field(description="The arguments passed to the tool.")
     kwargs: Dict[str, Any] = Field(description="The keyword arguments passed to the tool.")
 

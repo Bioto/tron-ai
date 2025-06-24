@@ -60,7 +60,7 @@ BASE_PROMPT = """
     </OUTPUT_FORMAT>
     <OUTPUT_FORMAT_RULES>
         - Always return a List using `[]` of the above JSON objects, even if its just one item.
-        - If generating a list of tool calls, make sure to include the `func_name` and `args` and `kwargs` for each tool call.
+        - If generating a list of tool calls, make sure to include the `name` and `args` and `kwargs` for each tool call.
     </OUTPUT_FORMAT_RULES>
     {% endif %}
 
@@ -169,7 +169,7 @@ class LLMClient(Component):
         #         expected_format=str(system_prompt.output_format.model_json_schema())
         #     )
 
-    async def fcall(
+    def fcall(
         self,
         user_query: str,
         system_prompt: Prompt,
@@ -183,7 +183,6 @@ class LLMClient(Component):
             system_prompt: The system prompt to use
             tool_manager: Optional tool manager for function execution
             prompt_kwargs: Additional prompt keyword arguments
-            max_parallel_tools: Maximum number of parallel tool executions
 
         Returns:
             The response from the LLM, processed according to the output format
@@ -191,18 +190,21 @@ class LLMClient(Component):
         generator = self._build_generator()
 
         if tool_manager is None:
-            return await self._execute_direct_call(
+            return self._execute_direct_call(
                 generator, system_prompt, user_query, []
             )
-
-        # Execute with tool management
-        return await self._execute_with_tools(
-            generator,
-            system_prompt,
-            user_query,
-            tool_manager,
-            prompt_kwargs
-        )
+        try:    
+            # Execute with tool management
+            return self._execute_with_tools(
+                generator,
+                system_prompt,
+                user_query,
+                tool_manager,
+                prompt_kwargs
+            )
+        except Exception as e:
+            logger.error(f"Error in fcall: {str(e)}")
+            raise e
 
     def _prepare_tool_prompt_kwargs(
         self, tool_manager: ToolManager, output_data_class: type
@@ -277,6 +279,7 @@ class LLMClient(Component):
                 logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
                 
                 # Execute tool using the manager
+
                 tool_result = tool_manager.execute_func(tool)
                 logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
 
@@ -339,26 +342,9 @@ class LLMClient(Component):
             return results[-self._max_accumulated_results :]
         return results
 
-    async def _calculate_backoff_delay(self, retry_count: int) -> float:
-        """Calculate exponential backoff delay with jitter."""
-        if retry_count == 0:
-            return 0
 
-        # Exponential backoff: 2^retry_count seconds
-        base_delay = RETRY_BACKOFF_FACTOR**retry_count
 
-        # Add jitter to prevent thundering herd
-        import random
-
-        jitter = random.uniform(0, 0.1 * base_delay)
-
-        # Cap at maximum backoff
-        delay = min(base_delay + jitter, RETRY_MAX_BACKOFF)
-
-        self._log(f"Backoff delay for retry {retry_count}: {delay:.2f}s")
-        return delay
-
-    async def _execute_with_tools(
+    def _execute_with_tools(
         self,
         generator: Generator,
         system_prompt: Prompt,
@@ -404,19 +390,20 @@ class LLMClient(Component):
 
         # Track whether we've made progress to avoid redundant retries
         last_successful_tool_count = 0
+        previous_tool_calls = []
 
         while retry_count < max_retries:
             self._log(f"Iteration {retry_count + 1} of {max_retries}")
             logger.info(f"[LLM_RETRY] Starting iteration {retry_count + 1} of {max_retries}")
 
-            # Apply exponential backoff for retries (async version)
+            # Apply exponential backoff for retries
             if retry_count > 0:
-                import asyncio
+                import time
 
                 backoff_delay = RETRY_BACKOFF_FACTOR**retry_count
                 actual_delay = min(backoff_delay, RETRY_MAX_BACKOFF)
                 self._log(f"Applying backoff delay: {actual_delay}s")
-                await asyncio.sleep(actual_delay)
+                time.sleep(actual_delay)
 
             # Clean up accumulated results if needed
             all_tool_call_results = self._cleanup_accumulated_results(
@@ -451,6 +438,20 @@ class LLMClient(Component):
             # Process tool calls
             try:
                 current_tool_calls = dataset.get("tool_calls", [])
+                
+                # Check if we're repeating the same tool calls
+                if current_tool_calls == previous_tool_calls and retry_count > 0:
+                    self._log("LLM is repeating the same tool calls. Breaking loop.")
+                    logger.info(f"[LLM_RETRY] Duplicate tool calls detected: {current_tool_calls}")
+                    # Check if the LLM provided a final response
+                    if "response" in dataset:
+                        final_response = system_prompt.output_format(**dataset)
+                        self._cache_response(cache_key, final_response)
+                        return final_response
+                    # Otherwise, break to make final direct call
+                    break
+                
+                previous_tool_calls = current_tool_calls
                 logger.info(f"[LLM_RETRY] About to execute {len(current_tool_calls)} new tool calls")
                 new_results = self._execute_tool_calls(current_tool_calls, tool_manager)
             except ToolExecutionError:
@@ -470,9 +471,14 @@ class LLMClient(Component):
                 self._log("No progress made in tool execution, considering early exit")
                 logger.info(f"[LLM_RETRY] No progress made - tool count remains at {current_tool_count}")
                 # If we're not making progress and have tried at least once,
-                # consider returning what we have
-                if not new_results and not current_tool_calls:
-                    retry_count = max_retries - 1  # Force final attempt
+                # check if the LLM provided a final response
+                if "response" in dataset:
+                    self._log("LLM provided final response despite tool calls. Returning response.")
+                    final_response = system_prompt.output_format(**dataset)
+                    self._cache_response(cache_key, final_response)
+                    return final_response
+                # Otherwise, force a final direct call
+                break
                     
             last_successful_tool_count = current_tool_count
             all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
@@ -481,13 +487,13 @@ class LLMClient(Component):
 
         # Otherwise, make a final direct call
         self._log(f"Exhausted retries ({retry_count}), making final direct call")
-        final_response = await self._execute_direct_call(
+        final_response = self._execute_direct_call(
             generator, system_prompt, user_query, all_tool_call_results
         )
         self._cache_response(cache_key, final_response)
         return final_response
 
-    async def _execute_direct_call(
+    def _execute_direct_call(
         self,
         generator: Generator,
         system_prompt: Prompt,

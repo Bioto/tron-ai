@@ -1,19 +1,10 @@
-// {
-//   "mcpServers": {
-//     "mcp-server-docker": {
-//       "command": "uvx",
-//       "args": [
-//         "mcp-server-docker"
-//       ]
-//     },
-//     "firecrawl-mcp": {
-//       "command": "env",
-//       "args": [
-//         "FIRECRAWL_API_KEY=XXX",
-//         "npx",
-//         "-y", 
-//         "firecrawl-mcp"
-//       ]
-//     }
-//   }
-// }
+{
+  "mcpServers": {
+    "mcp-server-docker": {
+      "command": "uvx",
+      "args": [
+        "mcp-server-docker"
+      ]
+    }
+  }
+}

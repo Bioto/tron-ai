@@ -86,7 +86,7 @@ class TaskExecutor:
                                 f"Calling agent for task '{task.identifier}' with {len(task.operations)} operations"
                             )
 
-                            result = await self.client.fcall(
+                            result = self.client.fcall(
                                 user_query=operations_query
                                 + "\n\n"
                                 + "Always return your response in markdown format.",
@@ -176,7 +176,7 @@ class TaskExecutor:
                     "description": t.description,
                     "error": t.error
                 })
-            
+                
             raise TaskError(
                 f"Some tasks failed during execution: {len(failed_tasks)}",
                 context={
