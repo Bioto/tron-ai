@@ -11,7 +11,7 @@ from tron_intelligence.executors.agents.models.agent import Agent
 from tron_intelligence.executors.agents.prompts.agent_manager_prompt import build_agent_manager_prompt
 from tron_intelligence.executors.base import ExecutorConfig
 from tron_intelligence.utils.LLMClient import LLMClient, LLMClientConfig
-from tron_intelligence.runners.a2a.executor import TronA2AExecutor
+from tron_intelligence.modules.a2a.executor import TronA2AExecutor
 
 
 a2a_agent = Agent(
