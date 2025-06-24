@@ -1,0 +1,65 @@
+[project]
+name = "tron-ai"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "adalflow>=0.2.6",
+    "click>=8.1.8",
+    "jinja2>=3.1.5",
+    "openai>=1.59.7",
+    "polyfactory>=2.18.1",
+    "rich-click>=1.8.5",
+    "rich>=13.9.4",
+    "typing-extensions>=4.12.2",
+    "markitdown>=0.0.1a3",
+    "requests>=2.32.3",
+    "beautifulsoup4>=4.12.3",
+    "astroid>=3.3.8",
+    "black>=25.1.0",
+    "isort>=6.0.0",
+    "orjson>=3.10.15",
+    "aiohttp>=3.11.12",
+    "chromadb>=0.6.3",
+    "pytest>=8.3.4",
+    "mcp[cli]>=1.9.0",
+    "pydantic>=2.11.4",
+    "psutil>=7.0.0",
+    "a2a-sdk>=0.2.5",
+    "sentence-transformers>=4.1.0",
+    "asyncclick>=8.1.8",
+]
+
+[project.scripts]
+tron-ai = "tron_intelligence.cli:cli"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+include = ["tron_intelligence"]
+
+[project.optional-dependencies]
+test = [
+    "pytest>=8.0.0",
+    "pytest-cov>=4.1.0",
+    "pytest-asyncio>=0.23.5",
+    "pytest-rich>=0.1.1",
+    "pytest-mock>=3.12.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-v"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.2.0",
+    "pygame>=2.6.1",
+    "pytest-asyncio>=0.25.2",
+    "pytest-cov>=6.1.1",
+    "ruff>=0.11.10",
+]

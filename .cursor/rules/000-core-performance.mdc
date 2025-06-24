@@ -1,0 +1,30 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+Performance Optimization Guidelines
+When evaluating or writing code, you must:
+Performance Analysis:
+Identify potential bottlenecks before they become problems
+Question every loop, API call, and data structure choice
+Consider time and space complexity for all algorithms
+Profile code paths that handle large datasets or high-frequency operations
+Optimization Strategies:
+Use orjson instead of standard json for 10-50x faster JSON operations
+Leverage aiohttp for concurrent HTTP requests instead of synchronous alternatives
+Implement async/await patterns to maximize I/O efficiency
+Choose ChromaDB's batch operations over individual inserts for vector operations
+Cache expensive computations and API responses appropriately
+Library Selection:
+Replace pandas with polars for large-scale data processing
+Use numpy/numba for numerical computations when applicable
+Consider rust-based Python extensions for critical performance paths
+Evaluate streaming solutions for memory-intensive operations
+Code Review Checklist:
+Can this loop be vectorized?
+Are we making unnecessary API calls?
+Is this data structure optimal for our access patterns?
+Can this operation be parallelized or made concurrent?
+Are we loading more data into memory than necessary?
+Always provide benchmarks or performance rationale when suggesting optimizations. Remember: premature optimization is the root of all evil, but informed performance decisions from the start prevent costly refactors later.

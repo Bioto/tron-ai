@@ -1,0 +1,24 @@
+services:
+  mcp:
+    build:
+      context: ../../
+      dockerfile: .docker/mcp/DockerFile
+    container_name: tron-ai-mcp
+    restart: unless-stopped
+    volumes:
+      # Mount the mcp_servers.json file so we can update it without rebuilding
+      - ../../mcp_servers.json:/app/mcp_servers.json:ro
+      # Mount logs directory for persistent logs
+      - ../../logs:/app/logs
+      # Mount the Docker socket to allow Docker access from within the container
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - MCP_CONFIG=/app/mcp_servers.json
+      - PYTHONUNBUFFERED=1
+    networks:
+      - tron-ai-network
+
+networks:
+  tron-ai-network:
+    name: tron-ai-network
+    driver: bridge

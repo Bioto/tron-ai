@@ -1,0 +1,496 @@
+# Third-party imports
+import asyncio
+import logging
+from datetime import datetime, timedelta
+from pathlib import Path
+import json
+
+import asyncclick as click
+from adalflow import OpenAIClient
+from rich.console import Console
+from rich.prompt import Prompt as RichPrompt
+from rich.markdown import Markdown
+
+from tron_intelligence.executors.agents.builtin import SearchAgent, DelegateExecutor
+from tron_intelligence.executors.agents import AgentExecutor
+from tron_intelligence.executors.agents.models.agent import Agent
+from tron_intelligence.executors.base import ExecutorConfig
+from tron_intelligence.executors.completion import CompletionExecutor
+from tron_intelligence.prompts.loader import load_prompt_content
+from tron_intelligence.prompts.models import Prompt, PromptDefaultResponse
+
+# Local imports
+from tron_intelligence.config import setup_logging
+from tron_intelligence.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_intelligence.constants import (
+    TIMEOUT_MCP_AGENT,
+    TIMEOUT_COMPLETION,
+    CLI_MEMORY_QUERY_LIMIT,
+    MEMORY_TIME_TODAY,
+    MEMORY_TIME_WEEK,
+    MEMORY_TIME_MONTH,
+    MEMORY_DAYS_WEEK,
+    MEMORY_DAYS_MONTH,
+)
+from tron_intelligence.exceptions import (
+    MemoryError,
+    TimeoutError,
+    CLIError,
+)
+
+from adalflow.core.tool_manager import ToolManager
+from tron_intelligence.utils.connection_manager import get_memory_collection
+from tron_intelligence.vendor.chroma import (
+    ChromaClient,
+    store_memory_async,
+    query_memory_async,
+)
+from tron_intelligence.modules.mcp.manager import MCPAgentManager
+from tron_intelligence.executors.agents.prompts.agent_manager_prompt import AgentManagerResults
+from tron_intelligence.executors.agents.models.delegate import DelegateState
+from tron_intelligence.modules.tasks.models import Task
+
+# Setup logging
+setup_logging()
+logger = logging.getLogger("tron_intelligence.cli")
+
+# Initialize console for rich prompt only
+console = Console()
+
+search_agent = SearchAgent()
+
+class FunctionOutput:
+    def __init__(self, output: str):
+        self.output = output
+
+def generate_memory_tool():
+    # Get memory collection through connection manager
+    memory_collection = get_memory_collection()
+    # Wrap it with async collection
+    async_collection = ChromaClient(memory_collection)
+
+    async def store_memory(*args, **kwargs):
+        memory_text = args[0]
+        print(f"Storing memory: {memory_text}")
+        """Store an AI agent's memory in the memory database.
+
+        This function stores AI agent memories in a vector database for context retention
+        and future reference. Each memory is stored with its text content and metadata
+        including a timestamp, allowing the agent to recall and reference past information.
+
+        Args:
+            memory_text (str): The information or observation for the AI agent to remember
+
+        Returns:
+            str: A message indicating the success or failure of the memory storage
+
+        Example:
+            >>> store_memory("What is the capital of France?")
+        """
+        try:
+            await store_memory_async(async_collection, memory_text)
+            return FunctionOutput(output="Memory stored successfully")
+        except Exception as e:
+            logger.error(f"Error storing memory: {e}")
+            return FunctionOutput(output=f"Error storing memory: {e}")
+
+    async def read_memory(query: str, memory_time: str) -> str:
+        """Read relevant memories based on a query.
+
+        This function searches the memory database for entries similar to the provided query
+        and returns them as context. It uses similarity search to find the most relevant
+        stored memories. Each memory is retrieved with its text content and metadata
+        including timestamp, allowing the agent to recall and reference past information.
+
+        Args:
+            query (str): The query to search for similar memories
+            memory_time Optional(str): The time range to search for memories. Must be one of: TODAY, WEEK, MONTH, ALL
+        Returns:
+            str: A formatted string containing relevant memories found in the database
+
+        Example:
+            >>> read_memory("Tell me about France")
+        """
+        # Calculate memory time based on range
+        if memory_time == MEMORY_TIME_TODAY:
+            start_time = datetime.now().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
+        elif memory_time == MEMORY_TIME_WEEK:
+            start_time = datetime.now() - timedelta(days=MEMORY_DAYS_WEEK)
+        elif memory_time == MEMORY_TIME_MONTH:
+            start_time = datetime.now() - timedelta(days=MEMORY_DAYS_MONTH)
+        else:
+            start_time = None
+
+        # Build where clause for time filtering
+        where = {"timestamp": {"$gte": start_time.timestamp()}} if start_time else None
+
+        try:
+            results = await query_memory_async(
+                async_collection,
+                query=query,
+                n_results=CLI_MEMORY_QUERY_LIMIT,
+                where=where,
+            )
+
+            if not results["documents"] or not results["documents"][0]:
+                return FunctionOutput(output="No relevant memories found.")
+
+            # Optimized: Use list comprehension instead of loop with append
+            memories = [
+                f"- {doc}, metadata: {metadata}"
+                for doc, metadata in zip(
+                    results["documents"][0], results["metadatas"][0]
+                )
+            ]
+
+            return FunctionOutput(output="Previous relevant context:\n" + "\n".join(memories))
+        except Exception as e:
+            logger.error(f"Error reading memory: {e}")
+            raise MemoryError(
+                "Failed to query memories from database",
+                context={
+                    "query": query,
+                    "memory_time": memory_time,
+                    "error_type": type(e).__name__,
+                    "error_message": str(e)
+                }
+            )
+
+    return ToolManager(tools=[store_memory, read_memory])
+
+
+@click.group()
+async def cli():
+    """Command line interface for Tron AI"""
+    pass
+
+
+@cli.command()
+@click.argument("query")
+async def ask(query):
+    """Ask Tron AI a question"""
+
+    # Initialize a basic prompt and client
+    prompt = Prompt(
+        text="You are a helpful AI assistant.",
+    )
+    client = LLMClient(
+        client=OpenAIClient(),
+        config=LLMClientConfig(
+            model_name="gpt-4o",
+            json_output=True,
+        ),
+    )
+    executor = CompletionExecutor(config=ExecutorConfig(client=client, prompt=prompt))
+
+    # Get response from LLM
+    response = await executor.execute(
+        query, tool_manager=generate_memory_tool(), system_prompt=prompt
+    )
+
+    logger.setLevel(logging.INFO)
+    # Print the interaction
+    logger.info(f"You: {query}")
+    logger.info(f"Assistant: {response.response}\n")
+
+
+@cli.command()
+@click.argument("query", default="Hello, Assistant!", required=False)
+async def assistant(query="Hello, Assistant!"):
+    """Start an interactive chat session with Tron AI"""
+    from tron_intelligence.executors.completion import CompletionExecutor
+    from tron_intelligence.prompts.models import Prompt
+
+    async def run_assistant(query="Hello, Assistant!"):
+        # Initialize prompt and client
+        Prompt(
+            text=load_prompt_content("cli_assistant_prompt"),
+        )
+        client = LLMClient(
+            client=OpenAIClient(),
+            config=LLMClientConfig(
+                model_name="gpt-4o", json_output=True, logging=False
+            ),
+        )
+        executor = CompletionExecutor(
+            config=ExecutorConfig(client=client, logging=True)
+        )
+
+        conversation_history = []
+
+        # If initial query provided, process it
+        if query:
+            response = await executor.execute(
+                query,
+                tool_manager=generate_memory_tool(),
+                system_prompt=Prompt(
+                    text=load_prompt_content("cli_assistant_prompt"),
+                    output_format=PromptDefaultResponse,
+                ),
+            )
+            conversation_history.append((query, response.response))
+
+            logger.info(f"You: {query}")
+            logger.info(f"Assistant: {response.response}\n")
+
+        # Start interactive loop
+        while True:
+            try:
+                user_input = RichPrompt().ask(prompt="[bold red]Input[/bold red]")
+                if user_input.lower() in ["exit", "quit", "bye"]:
+                    logger.info("Goodbye!")
+                    break
+
+                # Append conversation history to query for context
+                context = "\n".join(
+                    [f"User: {q}\nAssistant: {a}" for q, a in conversation_history]
+                )
+                full_query = f"{context}\nUser: {user_input}"
+
+                response = await executor.execute(
+                    full_query,
+                    tool_manager=generate_memory_tool(),
+                    system_prompt=Prompt(
+                        text=load_prompt_content("cli_assistant_prompt"),
+                        output_format=PromptDefaultResponse,
+                    ),
+                )
+                conversation_history.append((user_input, response.response))
+
+                logger.info(f"Assistant: {response.response}\n")
+
+            except (KeyboardInterrupt, EOFError):
+                logger.info("\nGoodbye!")
+                break
+            except Exception as e:
+                logger.error(f"Error during assistant execution: {e}")
+                raise CLIError(
+                    "Failed to process assistant request",
+                    context={
+                        "error_type": type(e).__name__,
+                        "error_message": str(e)
+                    }
+                )
+
+    await run_assistant(query)
+
+
+@cli.command()
+async def chain():
+    from tron_intelligence.executors.chain import ChainExecutor, Step
+    from tron_intelligence.prompts.models import Prompt
+
+    prompt = Prompt(
+        text="You are a helpful AI assistant.",
+    )
+    client = LLMClient(
+        client=OpenAIClient(),
+        config=LLMClientConfig(model_name="gpt-4o", json_output=True, temperature=2),
+    )
+
+    executor = ChainExecutor(config=ExecutorConfig(client=client, prompt=prompt))
+
+    results = executor.execute(
+        "Write me a story about a dog who is a detective.",
+        steps=[
+            Step(
+                prompt=Prompt(
+                    text="Create a detailed character profile for our dog detective, including breed, personality traits, quirks, and detective style.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Design a love interest for the dog - another animal with their own career, personality, and how they first meet our detective.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Develop the setting - describe the city/town, the detective's office, and the general atmosphere of the story.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Create a complex crime with multiple suspects, red herrings, and interesting motives.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Develop a cast of supporting characters who will help or hinder the investigation.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Write the first act of the story, introducing the main characters and the crime.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Write the second act showing the investigation, red herrings, and developing relationship with the love interest.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Write the third act with the climax, resolution of both the crime and romance subplots.",
+                )
+            ),
+            Step(
+                prompt=Prompt(
+                    text="Using all previous elements, compile everything into a cohesive story with rich details, dialogue, and descriptions.",
+                )
+            ),
+        ],
+    )
+
+    logger.info(results.response)
+
+
+@cli.command()
+@click.argument("query")
+@click.option(
+    "--output", 
+    "-o", 
+    is_flag=True,
+    help="Save the result to a markdown file in the output directory"
+)
+async def agent(query: str, output):
+    """Execute a query using the MCP agent."""
+
+    logger.info("Starting MCP Agent execution...")
+
+    # Use LLMClient from cli.py scope or initialize a new one specific to this command
+    llm_client = LLMClient(
+        client=OpenAIClient(),
+        config=LLMClientConfig(
+            model_name="gpt-4o", json_output=True, logging=True
+        ),
+    )
+
+    # Create executor config
+    config = ExecutorConfig(client=llm_client, logging=False)
+        
+    mcp_agent_manager = MCPAgentManager()
+    await mcp_agent_manager.initialize()
+    print(f"mcp_agent_manager: {len(mcp_agent_manager.agents)}")
+
+    # Create the AgentExecutor with the MCP agent
+    agent_executor = DelegateExecutor(
+        config=config, agents=mcp_agent_manager.agents.values(), state=DelegateState(
+            agents=mcp_agent_manager.agents.values()
+        )
+    )
+
+    # Create the CompletionExecutor for summarizing
+    completion_executor = CompletionExecutor(config=config)
+
+    logger.info(f"Executing agent query: {query}")
+    # Execute the agent query
+    delegate_state: DelegateState = await agent_executor.execute(user_query=query)
+    task_list = {
+        "tasks": []
+    }
+    for task in delegate_state.tasks:
+        task_obj = Task.model_validate(task.model_dump())
+        task_list["tasks"].append({
+            "description": task_obj.description,
+            "result": task_obj.result
+        })
+    
+    logger.info("Generating final response...")
+    # try:
+    # Execute the completion query to summarize
+    final_response = await asyncio.wait_for(
+        completion_executor.execute(
+            user_query=f'''
+            Here are the tasks that were completed:
+            {json.dumps(task_list)}
+            ''',
+            system_prompt=Prompt(
+                text="Generate me a task summary of the tasks that were completed. Be sure to include all the details of the tasks in the summary. Make sure to answer the users query using the information from the tasks, Always include results from the tool calls in the response."
+            ),
+        ),
+        timeout=TIMEOUT_COMPLETION,
+    )
+
+    logger.info("Final response generated:")
+    logger.info(f"\t{final_response.response}")
+
+
+
+@cli.command()
+async def list_mcp_agents():
+    """List all MCP agents and their status (test MCPAgentManager)."""
+    manager = MCPAgentManager()
+    await manager.initialize()
+    agents = manager.agents
+    if not agents:
+        console.print("[bold red]No MCP agents found.[/bold red]")
+        return
+    console.print(f"[bold green]Loaded {len(agents)} MCP agents:[/bold green]")
+    for name, agent in agents.items():
+        status = "Initialized" if agent.mcp_client else "Not initialized"
+        console.print(f"- [bold]{name}[/bold]: {status}")
+    await manager.cleanup()
+
+
+@cli.command()
+async def test_agent_executor():
+    """Test the agent executor."""
+    # Use LLMClient from cli.py scope or initialize a new one specific to this command
+    llm_client = LLMClient(
+        client=OpenAIClient(),
+        config=LLMClientConfig(
+            model_name="gpt-4o", json_output=True, logging=False,
+        ),
+    )
+
+    agent = Agent(
+        name="Test Agent",
+        description="A test agent",
+        prompt=Prompt(
+            text="You are a test agent. You are tasked with testing the agent executor.",
+            output_format=AgentManagerResults,
+        )
+    )
+
+    # Create executor config
+    config = ExecutorConfig(client=llm_client, logging=False)
+    agent_executor = DelegateExecutor(config=config, state=DelegateState(agents=[agent]), client=llm_client)
+    response = await agent_executor.execute(user_query="What is the capital of France?")
+    console.print(response)
+
+if __name__ == "__main__":
+    import sys
+    import logging
+    import warnings
+    
+    # Suppress all warnings and asyncio error logging for cleaner output
+    warnings.filterwarnings("ignore")
+    
+    # Disable asyncio task exception logging that shows the "Task exception was never retrieved" error
+    logging.getLogger('asyncio').setLevel(logging.CRITICAL)
+    
+    def suppress_asyncio_shutdown_errors(exctype, value, traceback):
+        # Suppress specific RuntimeError messages during shutdown
+        if exctype is RuntimeError and (
+            re.search(r'no running event loop', str(value)) or
+            re.search(r'Event loop is closed', str(value))
+        ):
+            return  # Suppress
+        # Call the default excepthook
+        sys.__excepthook__(exctype, value, traceback)
+
+    sys.excepthook = suppress_asyncio_shutdown_errors
+    
+    try:
+        asyncio.run(cli())
+    except SystemExit as e:
+        # For successful exits (code 0), don't show anything
+        if e.code != 0:
+            # For actual errors, show the exit code
+            sys.exit(e.code)
+    except KeyboardInterrupt:
+        # Handle Ctrl+C gracefully without traceback
+        print("\nInterrupted by user")
+        sys.exit(130)
