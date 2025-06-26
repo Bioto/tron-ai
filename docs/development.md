@@ -31,10 +31,13 @@ cd tron-ai
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install in development mode
+# Install in development mode (recommended)
+uv sync
+
+# Or install with pip
 pip install -e ".[dev,test]"
 
-# Install pre-commit hooks
+# Install pre-commit hooks (if available)
 pre-commit install
 ```
 

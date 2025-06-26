@@ -57,7 +57,10 @@ python --version
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Install tron-ai
+# Install with uv (recommended)
+uv sync
+
+# Or install with pip
 pip install -e .
 ```
 
@@ -90,32 +93,33 @@ graph LR
         CLI --> ASST[assistant]
         CLI --> CHAIN[chain]
         CLI --> AGENT[agent]
+        CLI --> LIST[list-mcp-agents]
+        CLI --> TEST[test-agent-executor]
         
-        ASK --> ASKDESC[Simple Q&A]
-        ASST --> ASSTDESC[Interactive Chat]
-        CHAIN --> CHAINDESC[Multi-step Reasoning]
-        AGENT --> AGENTDESC[Agent Orchestration]
+        ASK --> ASKDESC[Simple Q&A with Memory]
+        ASST --> ASSTDESC[Interactive Chat with History]
+        CHAIN --> CHAINDESC[Predefined Story Generation]
+        AGENT --> AGENTDESC[MCP Agent Execution]
+        LIST --> LISTDESC[List Available MCP Agents]
+        TEST --> TESTDESC[Test Agent Executor]
     end
 ```
 
 ### 1. Ask Command
 
-Simple one-off questions without context retention.
+Simple one-off questions with memory integration.
 
 ```bash
 # Basic usage
 tron-ai ask "What is quantum computing?"
 
-# With custom model
-tron-ai ask "Explain machine learning" --model gpt-4o
-
-# With structured output
-tron-ai ask "List 5 Python best practices" --json
+# The ask command uses gpt-4o model and includes memory storage/retrieval
+# Note: No additional options like --model or --json are currently available
 ```
 
 ### 2. Assistant Command
 
-Interactive chat with memory persistence.
+Interactive chat with memory persistence and conversation history.
 
 ```bash
 # Start interactive session
@@ -124,38 +128,61 @@ tron-ai assistant
 # Start with initial query
 tron-ai assistant "Tell me about AI"
 
-# With custom settings
-tron-ai assistant --model gpt-4o --memory-limit 10
+# Note: Uses gpt-4o model, includes memory tools, and maintains conversation context
+# No additional options like --model or --memory-limit are currently available
 ```
 
 ### 3. Chain Command
 
-Execute multi-step reasoning chains.
+Execute a predefined multi-step story generation chain.
 
 ```bash
-# Start chain execution
+# Run the chain command (no arguments)
 tron-ai chain
 
-# The CLI will guide you through:
-# 1. Defining the goal
-# 2. Breaking down into steps
-# 3. Executing each step
-# 4. Combining results
+# This executes a hardcoded story generation workflow about a dog detective
+# The chain includes 9 predefined steps from character creation to final story
+# Note: Currently not configurable - runs a fixed story generation sequence
 ```
 
 ### 4. Agent Command
 
-Execute complex tasks using specialized agents.
+Execute complex tasks using MCP (Model Context Protocol) agents.
 
 ```bash
 # Basic agent execution
 tron-ai agent "Analyze the Python files in this directory"
 
-# With specific agents
-tron-ai agent "Create a web scraper" --agents code,file
+# Optional: Save output to markdown file
+tron-ai agent "Create a web scraper" --output
+tron-ai agent "Analyze and document this codebase" -o
 
-# Parallel execution
-tron-ai agent "Analyze and document this codebase" --parallel
+# Note: Uses MCP agents loaded from mcp_servers.json configuration
+# The --agents and --parallel options are not currently available
+```
+
+### 5. List MCP Agents Command
+
+List all available MCP agents and their status.
+
+```bash
+# List all MCP agents
+tron-ai list-mcp-agents
+
+# Shows agent names and initialization status
+# Useful for debugging MCP configuration
+```
+
+### 6. Test Agent Executor Command
+
+Test the agent executor functionality with a simple query.
+
+```bash
+# Test agent executor
+tron-ai test-agent-executor
+
+# Runs a test query "What is the capital of France?" through the delegate executor
+# Useful for verifying agent system is working correctly
 ```
 
 ## Command Flow Diagrams

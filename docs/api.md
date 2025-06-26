@@ -151,24 +151,19 @@ agent = FileAgent()
 
 Model Context Protocol operations.
 
-For single-server use:
 ```python
-from tron_intelligence.executors.agents.builtin import MCPAgent
+from tron_intelligence.modules.mcp.agent import Agent as MCPAgent
 
-agent = MCPAgent()
-await agent.initialize()  # Required before use
-# Dynamic tool loading from MCP servers
-await agent.cleanup()  # Clean up resources
+# MCP agents are managed through MCPAgentManager
+# See MCPAgentManager section below for usage
 ```
-
-For multi-server management, use MCPAgentManager (see below).
 
 #### MCPAgentManager
 
 Manages a pool of MCPAgent instances, each connected to a different MCP server. Provides async initialization, dynamic agent addition/removal, and config-based reloading.
 
 ```python
-from tron_intelligence.executors.agents.builtin.mcp_agent_manager import MCPAgentManager
+from tron_intelligence.modules.mcp.manager import MCPAgentManager
 
 manager = MCPAgentManager()
 await manager.initialize("mcp_servers.json")  # Load all agents from config

@@ -63,7 +63,10 @@ graph LR
 git clone https://github.com/yourusername/tron-ai.git
 cd tron-ai
 
-# Install dependencies
+# Install dependencies (recommended)
+uv sync
+
+# Or with pip
 pip install -e .
 
 # Set up environment
@@ -73,14 +76,17 @@ export OPENAI_API_KEY=your-api-key
 ### Basic Usage
 
 ```bash
-# Simple question
+# Simple question (with memory)
 tron-ai ask "What is Python?"
 
-# Interactive assistant
+# Interactive assistant (with conversation history)
 tron-ai assistant
 
-# Complex task with agents
+# Complex task with MCP agents
 tron-ai agent "Analyze and improve this codebase"
+
+# Predefined story generation chain
+tron-ai chain
 ```
 
 ## Documentation Structure

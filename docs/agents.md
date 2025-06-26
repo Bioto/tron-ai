@@ -79,14 +79,13 @@ mindmap
 
 #### Tools
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `analyze_code_structure` | Analyzes code organization | `code: str, language: str` |
-| `check_code_quality` | Checks for issues and metrics | `code: str, language: str` |
-| `format_code` | Formats code properly | `code: str, language: str` |
-| `generate_tests` | Creates test cases | `code: str, language: str` |
-| `analyze_dependencies` | Maps dependencies | `code: str, language: str` |
-| `suggest_improvements` | Provides suggestions | `code: str, language: str` |
+The Code Agent currently has an empty tool manager but provides comprehensive code analysis, generation, and optimization capabilities through its LLM prompt. It handles:
+- Code structure analysis and organization
+- Code quality assessment and complexity analysis
+- Dependency mapping and import analysis
+- Code formatting according to standards
+- Test case generation and validation
+- Performance optimization suggestions
 
 #### Example Usage
 
@@ -98,10 +97,7 @@ tron-ai agent "Analyze this Python module for security issues"
 from tron_intelligence.executors.agents.builtin import CodeAgent
 
 agent = CodeAgent()
-result = agent.analyze_code_structure(
-    code=open("module.py").read(),
-    language="python"
-)
+# Note: CodeAgent works through LLM interactions, not direct method calls
 ```
 
 ### 2. Docker Agent
@@ -130,13 +126,14 @@ stateDiagram-v2
 
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `list_containers` | Lists all containers | `all: bool = False` |
-| `create_container` | Creates new container | `image: str, name: str, **kwargs` |
-| `start_container` | Starts container | `container_id: str` |
-| `stop_container` | Stops container | `container_id: str` |
-| `remove_container` | Removes container | `container_id: str` |
-| `get_logs` | Gets container logs | `container_id: str, tail: int` |
-| `inspect_container` | Gets container details | `container_id: str` |
+| `list_containers` | Lists all containers | `all: bool = True` |
+| `create_container` | Creates new container | `image: str, name: str, ports: list, env: list, volumes: list` |
+| `start_container` | Starts container | `container: str` |
+| `stop_container` | Stops container | `container: str` |
+| `remove_container` | Removes container | `container: str, force: bool = False` |
+| `get_container_logs` | Gets container logs | `container: str, tail: int = None` |
+| `inspect_container` | Gets container details | `container: str` |
+| `run_docker_command` | Execute arbitrary docker command | `command: str` |
 
 #### Container Management Flow
 
@@ -192,13 +189,15 @@ graph LR
 
 #### Tools
 
+All file operations are async and include comprehensive error handling:
+
 | Tool | Description | Parameters |
 |------|-------------|------------|
-| `create_file` | Creates new file | `path: str, content: str` |
-| `read_file` | Reads file content | `path: str` |
-| `update_file` | Updates file content | `path: str, content: str` |
-| `delete_file` | Deletes file | `path: str` |
-| `list_directory` | Lists directory contents | `path: str, recursive: bool` |
+| `create_file` | Creates new file | `file_path: str, content: str = "", overwrite: bool = False` |
+| `read_file` | Reads file content | `file_path: str` |
+| `update_file` | Updates file content | `file_path: str, content: str, backup: bool = True` |
+| `delete_file` | Deletes file | `file_path: str, backup: bool = True` |
+| `list_directory` | Lists directory contents | `directory_path: str, recursive: bool = False, show_hidden: bool = False` |
 
 ### 4. MCP Agent
 
@@ -277,7 +276,7 @@ The MCP Agent Manager (`MCPAgentManager`) is a singleton responsible for managin
 #### Example Usage
 
 ```python
-from tron_intelligence.executors.agents.builtin.mcp_agent_manager import MCPAgentManager
+from tron_intelligence.modules.mcp.manager import MCPAgentManager
 
 manager = MCPAgentManager()
 await manager.initialize("mcp_servers.json")  # Load all agents from config
@@ -310,7 +309,7 @@ await manager.cleanup()
 
 ### 5. Search Agent
 
-Provides web search capabilities with result processing and content extraction.
+Provides web search capabilities using the Perplexity API for real-time information retrieval.
 
 #### Search Flow
 
