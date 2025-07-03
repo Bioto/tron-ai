@@ -51,7 +51,7 @@ Tron AI is a modular AI orchestration framework with a layered executor pattern:
 
 ### Project Structure
 ```
-tron_intelligence/           # Main package
+tron-ai/           # Main package
 ├── cli.py                  # CLI entry point with asyncclick
 ├── executors/              # Execution strategies
 │   ├── base.py            # Base executor interface
