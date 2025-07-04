@@ -5,10 +5,10 @@ from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
 from a2a.server.apps import A2AStarletteApplication
 
-from tron_ai.prompts.models import Prompt
-from tron_ai.executors.agents.executor import AgentExecutor
-from tron_ai.executors.agents.models.agent import Agent
-from tron_ai.executors.agents.prompts.agent_manager_prompt import build_agent_manager_prompt
+from tron_ai.models.prompts import Prompt
+from tron_ai.executors.agents_old.executor import AgentExecutor
+from tron_ai.models.agent import Agent
+from tron_ai.executors.agents_old.prompts.agent_manager_prompt import build_agent_manager_prompt
 from tron_ai.executors.base import ExecutorConfig
 from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
 from tron_ai.modules.a2a.executor import TronA2AExecutor

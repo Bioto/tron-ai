@@ -6,7 +6,7 @@ import pytest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 
 from tron_ai.modules.mcp.agent import Agent as MCPAgent, wrap_async_function
-from tron_ai.executors.agents.models.agent import Agent as TronAgent
+from tron_ai.models.agent import Agent as TronAgent
 from tron_ai.modules.mcp.client import Client
 
 

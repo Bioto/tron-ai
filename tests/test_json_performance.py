@@ -201,7 +201,7 @@ class TestJSONMigration:
 
     def test_docker_agent_json_usage(self):
         """Test that docker agent correctly uses json_utils."""
-        from tron_ai.executors.agents.builtin.docker_agent import json
+        from tron_ai.executors.agents_old.builtin.docker_agent import json
         from tron_ai.utils import json
 
         # Should be using our json_utils

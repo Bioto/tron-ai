@@ -3,12 +3,12 @@ from unittest.mock import Mock, patch, MagicMock, AsyncMock
 from dataclasses import dataclass
 
 from tron_ai.executors.base import ExecutorConfig
-from tron_ai.executors.agents.executor import AgentExecutor
-from tron_ai.executors.agents.base_executors import (
+from tron_ai.executors.agents_old.executor import AgentExecutor
+from tron_ai.executors.agents_old.base_executors import (
     BaseAgentExecutor,
 )
-from tron_ai.executors.agents.models.agent import Agent, AgentExecutorResponse, AgentExecutorResults
-from tron_ai.prompts.models import Prompt, PromptDiagnostics, PromptDefaultResponse
+from tron_ai.models.agent import Agent, AgentExecutorResponse, AgentExecutorResults
+from tron_ai.models.prompts import Prompt, PromptDiagnostics, PromptDefaultResponse
 from tron_ai.modules.tasks import Task
 from tron_ai.utils.LLMClient import LLMClient
 

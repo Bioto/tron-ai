@@ -2,9 +2,9 @@ import pytest
 from unittest.mock import Mock
 from pydantic import BaseModel
 
-from tron_ai.executors.base import BaseExecutor, ExecutorConfig
+from tron_ai.executors.base import Executor, ExecutorConfig
 from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 
 
 class MockResponse(BaseModel):
@@ -13,7 +13,7 @@ class MockResponse(BaseModel):
     value: str = "test"
 
 
-class MockExecutor(BaseExecutor):
+class MockExecutor(Executor):
     """Concrete implementation of BaseExecutor for testing."""
 
     def execute(self, *args, **kwargs) -> BaseModel:
@@ -87,4 +87,4 @@ class TestBaseExecutor:
             TypeError,
             match=r"Can't instantiate abstract class BaseExecutor without an implementation for abstract method 'execute'",
         ):
-            BaseExecutor(config=ExecutorConfig(client=Mock(spec=LLMClient)))
+            Executor(config=ExecutorConfig(client=Mock(spec=LLMClient)))

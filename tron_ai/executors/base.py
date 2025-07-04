@@ -1,27 +1,22 @@
 from abc import ABC, abstractmethod
+
+import logging
+
 from pydantic import BaseModel
-from typing import Optional
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.models.executors import ExecutorConfig
 
 
-class ExecutorConfig(BaseModel):
-    # Model Settings
-    model_config = {
-        "arbitrary_types_allowed": True,
-    }
-    # Client should be the only required field
-    client: LLMClient = None
-
-    # Prompt is optional
-    prompt: Optional[Prompt] = None
-
-    logging: bool = False
-
-
-class BaseExecutor(ABC):
+class Executor(ABC):
+    _config: ExecutorConfig = None
+    logger: logging.Logger = None
+    
     def __init__(self, config: ExecutorConfig, *args, **kwargs):
         self._config = config
+        
+        if self._config.logging:
+            self.logger = logging.getLogger(__name__)   
 
     @property
     def client(self) -> LLMClient:

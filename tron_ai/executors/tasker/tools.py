@@ -1,16 +1,19 @@
-from typing import TypeVar
+# Standard library imports
 import logging
+from dataclasses import dataclass
+
+# Third-party imports
 from tron_ai.exceptions import ExecutionError
 from tron_ai.modules.tasks import Task
-from tron_ai.executors.agents.prompts import build_agent_manager_prompt
-from tron_ai.executors.agents.utils.agent_selector import AgentSelector
-from tron_ai.executors.agents.utils.report_generator import ReportGenerator
-from tron_ai.executors.agents.utils.task_manager import TaskExecutor
-from dataclasses import dataclass
+from tron_ai.models.prompts import Prompt
 from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.executors.agents.models.delegate import DelegateState
+from tron_ai.utils.prompt_loader import load_local_prompt
 
-R = TypeVar("R")
+# Local imports
+from .models import DelegateState, AgentManagerResults
+from tron_ai.executors.tasker.utilities.agent_selector import AgentSelector
+from tron_ai.executors.tasker.utilities.report_generator import ReportGenerator
+from tron_ai.executors.tasker.utilities.task_executor import TaskExecutor
 
 @dataclass
 class ExecutionResult:
@@ -112,7 +115,10 @@ class DelegateTools:
         self.logger.debug(f"Entering generate_tasks for user query: {state.user_query}")
         self.logger.info(f"Processing user query: {state.user_query}")
         try:
-            task_manager_prompt = build_agent_manager_prompt()
+            task_manager_prompt = Prompt(
+                text=load_local_prompt("agent_manager"),
+                output_format=AgentManagerResults,
+            )
             self.logger.debug("Built task manager prompt.")
 
             agents_info = [

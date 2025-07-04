@@ -18,7 +18,7 @@ from pydantic import BaseModel
 from tron_ai.utils.LLMClient import LLMClient
 from tron_ai.models.config import LLMClientConfig
 from adalflow.core.tool_manager import ToolManager
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 
 
 # Create a proper Pydantic model for testing

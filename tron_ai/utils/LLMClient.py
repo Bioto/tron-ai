@@ -15,7 +15,7 @@ import orjson
 
 # Local imports
 from tron_ai.models.config import LLMClientConfig
-from tron_ai.prompts.models import Prompt, PromptDefaultResponse
+from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from tron_ai.constants import (
     LLM_MAX_RETRIES,
     LLM_DEFAULT_TEMPERATURE,

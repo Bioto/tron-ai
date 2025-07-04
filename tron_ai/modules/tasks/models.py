@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional, Any
 import os
 
-from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.models.agent import Agent
 
 
 class Task(BaseModel):

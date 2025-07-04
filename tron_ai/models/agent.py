@@ -1,6 +1,6 @@
 from typing import Dict, List, Optional
 from pydantic import BaseModel, ConfigDict, Field
-from tron_ai.prompts.models import Prompt, BasePromptResponse
+from tron_ai.models.prompts import Prompt, BasePromptResponse
 from a2a.types import AgentCard, AgentCapabilities, AgentSkill
 from adalflow.core.tool_manager import ToolManager
 

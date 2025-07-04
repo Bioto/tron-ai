@@ -1,6 +1,6 @@
 from typing import List, Tuple, Optional, Sequence
-from tron_ai.executors.agents.models.agent import Agent
-from tron_ai.executors.agents.prompts.agent_router_prompt import build_router_prompt
+from tron_ai.models.agent import Agent
+from tron_ai.executors.agents_old.prompts.agent_router_prompt import build_router_prompt
 from tron_ai.utils.LLMClient import LLMClient
 from tron_ai.modules.tasks import Task
 from tron_ai.modules.tasks.models import AgentAssignedTask

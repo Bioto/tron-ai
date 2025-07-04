@@ -4,7 +4,7 @@ import pytest
 from unittest.mock import Mock, AsyncMock
 
 from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 from tron_ai.executors.base import ExecutorConfig
 
 

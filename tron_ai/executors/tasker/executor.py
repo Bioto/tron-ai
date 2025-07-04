@@ -1,17 +1,7 @@
-# Standard library imports
-from typing import List
-
-# Third-party imports
-from pydantic import BaseModel
-
-# Local imports
-from tron_ai.executors.agents.base_executors import BaseAgentExecutor
-from tron_ai.executors.agents.builtin.executors.delegate_tools import (
-    DelegateTools,
-)
-from tron_ai.executors.agents.models.delegate import DelegateState
+from .tools import DelegateTools
+from .models import DelegateState
 from tron_ai.utils.graph import StateGraph
-from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.executors.base import Executor
 from tron_ai.exceptions import ExecutionError
 
 def build_delegate_graph(tools: DelegateTools) -> StateGraph:
@@ -63,7 +53,7 @@ def build_delegate_graph(tools: DelegateTools) -> StateGraph:
     return graph
         
 
-class DelegateExecutor(BaseAgentExecutor):
+class TaskerExecutor(Executor):
     """An agent executor that orchestrates a team of specialized agents.
 
     This executor manages the entire lifecycle of a user request by delegating
@@ -77,7 +67,7 @@ class DelegateExecutor(BaseAgentExecutor):
             implementation for each step in the delegation process.
     """
 
-    def __init__(self, agents: List[Agent], state: BaseModel, *args, **kwargs):
+    def __init__(self, state: DelegateState, *args, **kwargs):
         """Initializes the DelegateExecutor.
 
         Args:
@@ -86,9 +76,9 @@ class DelegateExecutor(BaseAgentExecutor):
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments passed to the base executor.
         """
-        super().__init__(agents=agents, *args, **kwargs)
-        self.state = state
-        self.tools = DelegateTools(client=self._config.client)
+        super().__init__(*args, **kwargs)
+        self.state: DelegateState = state
+        self.tools: DelegateTools = DelegateTools(client=self.client)
 
     async def execute(self, user_query: str) -> DelegateState:
         """Execute the delegation workflow for the given user query.
@@ -107,7 +97,7 @@ class DelegateExecutor(BaseAgentExecutor):
             graph = build_delegate_graph(self.tools)
             state = self.state.model_copy(update={
                 "user_query": user_query,
-                "agents": self.agents
+                "agents": self.state.agents
             })
             result = await graph.run(initial_state=state)
             return result

@@ -11,7 +11,7 @@ import orjson
 from pydantic import BaseModel
 
 from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig, BASE_PROMPT
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 from tron_ai.constants import LLM_DEFAULT_TEMPERATURE
 from adalflow.core.types import FunctionOutput
 

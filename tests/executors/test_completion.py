@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from pydantic import BaseModel
 
-from tron_ai.executors.base import ExecutorConfig, BaseExecutor
+from tron_ai.executors.base import ExecutorConfig, Executor
 from tron_ai.executors.completion import CompletionExecutor
 from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.prompts import Prompt
 from adalflow.core.tool_manager import ToolManager
 
 
@@ -62,7 +62,7 @@ class TestCompletionExecutor:
 
     def test_inheritance(self, completion_executor):
         """Test that CompletionExecutor inherits from BaseExecutor."""
-        assert isinstance(completion_executor, BaseExecutor)
+        assert isinstance(completion_executor, Executor)
 
     @pytest.mark.asyncio
     async def test_execute_with_empty_prompt_kwargs(

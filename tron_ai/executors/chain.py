@@ -6,8 +6,8 @@ import pydantic
 from pydantic_core import from_json
 
 # Local imports
-from tron_ai.executors.base import BaseExecutor
-from tron_ai.prompts.models import Prompt, PromptDefaultResponse
+from tron_ai.executors.base import Executor
+from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 
 
 class Step(pydantic.BaseModel):
@@ -15,7 +15,7 @@ class Step(pydantic.BaseModel):
     output_format: Type[pydantic.BaseModel] = PromptDefaultResponse
 
 
-class ChainExecutor(BaseExecutor):
+class ChainExecutor(Executor):
     def execute(self, user_query: str, steps: list[Step]) -> pydantic.BaseModel:
         step_results = []
 

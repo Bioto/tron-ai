@@ -4,7 +4,7 @@ from unittest.mock import Mock
 from tron_ai.executors.base import ExecutorConfig
 from tron_ai.executors.chain import ChainExecutor, Step
 from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.prompts.models import Prompt, PromptDefaultResponse
+from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 
 
 class TestChainExecutor:
@@ -51,6 +51,6 @@ class TestChainExecutor:
 
     def test_inheritance(self, chain_executor):
         """Test that ChainExecutor inherits from BaseExecutor."""
-        from tron_ai.executors.base import BaseExecutor
+        from tron_ai.executors.base import Executor
 
-        assert isinstance(chain_executor, BaseExecutor)
+        assert isinstance(chain_executor, Executor)

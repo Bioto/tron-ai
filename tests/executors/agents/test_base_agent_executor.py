@@ -2,9 +2,9 @@ import pytest
 from unittest.mock import Mock, patch
 
 from tron_ai.executors.base import ExecutorConfig
-from tron_ai.executors.agents.base_executors import BaseAgentExecutor
-from tron_ai.executors.agents.models.agent import Agent
-from tron_ai.prompts.models import Prompt
+from tron_ai.executors.agents_old.base_executors import BaseAgentExecutor
+from tron_ai.models.agent import Agent
+from tron_ai.models.prompts import Prompt
 from tron_ai.utils.LLMClient import LLMClient
 
 

@@ -23,8 +23,8 @@ from adalflow.core.tool_manager import ToolManager
 from pydantic import Field
 
 # Local imports
-from tron_ai.executors.agents.models.agent import Agent as TronAgent
-from tron_ai.prompts.models import Prompt
+from tron_ai.models.agent import Agent as TronAgent
+from tron_ai.models.prompts import Prompt
 from tron_ai.modules.mcp.client import Client
 
 # Configure logging

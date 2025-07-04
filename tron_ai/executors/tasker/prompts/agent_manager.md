@@ -1,11 +1,3 @@
-from typing import List, Optional
-from pydantic import BaseModel, Field
-from tron_ai.prompts.models import Prompt, PromptMeta
-from tron_ai.modules.tasks import Task
-from tron_ai.prompts.models import ToolCall
-
-
-BASE_MANAGER_PROMPT = """
 You will analyze user queries and break them down into tasks. 
 
 **IMPORTANT: Only treat a query as trivial if it can be answered with a simple factual response that requires NO actions, operations, or system changes. Examples of trivial queries:**
@@ -97,41 +89,3 @@ These are the agents available and their capabilities:
   Description: {{agent[1]}}
   Supports Multiple Operations: {{'Yes' if agent[2] else 'No'}}
 {% endfor %}
-"""
-
-
-class AgentManagerResults(PromptMeta, BaseModel):
-    """Results from the agent manager containing the list of tasks to be executed.
-
-    This model represents the output from the agent manager which breaks down user queries
-    into individual tasks that need to be completed in sequence or parallel based on dependencies.
-
-    Attributes:
-        tasks (List[Task]): A list of Task objects representing the individual tasks that need
-            to be completed. Each task contains its own description, dependencies, and execution
-            state. Tasks are ordered based on their dependencies and optimal execution order.
-        tool_calls (Optional[List[ToolCall]]): A list of tool calls made during the agent's execution.
-            This helps track which tools were used to generate the task list and can be useful for
-            debugging or auditing purposes.
-    """
-
-    tasks: List[Task] = Field(
-        description="The list of tasks that need to be completed.", 
-        default=[], 
-        required=True
-    )
-
-    tool_calls: Optional[List[ToolCall]] = Field(
-        default_factory=list, 
-        description="List of tools called during agent execution"
-    )
-
-def build_agent_manager_prompt(prompt: str = BASE_MANAGER_PROMPT) -> Prompt:
-    # Rebuild the model to ensure all forward references are resolved
-    # This is needed because Task has a forward reference to Agent
-    AgentManagerResults.model_rebuild()
-    
-    return Prompt(
-        text=prompt,
-        output_format=AgentManagerResults,
-    )

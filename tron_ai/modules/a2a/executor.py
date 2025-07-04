@@ -4,8 +4,8 @@ from a2a.types import TaskState, Task, UnsupportedOperationError, Message
 from a2a.utils.errors import ServerError
 from a2a.types import TaskStatus
 
-from tron_ai.executors.agents.models.agent import Agent
-from tron_ai.executors.base import BaseExecutor
+from tron_ai.models.agent import Agent
+from tron_ai.executors.base import Executor
 
 
 class TronA2AExecutor(AgentExecutor):
@@ -21,7 +21,7 @@ class TronA2AExecutor(AgentExecutor):
         executor: The base executor that handles the actual agent execution
     """
     
-    def __init__(self, agent: Agent, executor: BaseExecutor):
+    def __init__(self, agent: Agent, executor: Executor):
         """
         Initialize the TronA2AExecutor.
         

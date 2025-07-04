@@ -11,8 +11,8 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from tron_ai.modules.tasks import Task, AgentAssignedTask, Manager as TaskManager
-from tron_ai.executors.agents.utils.task_manager import TaskExecutor
-from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.executors.tasker.utilities.task_executor import TaskExecutor
+from tron_ai.models.agent import Agent
 
 
 class TestTaskManagerPerformance:
