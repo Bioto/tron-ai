@@ -460,10 +460,37 @@ async def test_agent_executor():
     response = await agent_executor.execute(user_query="What is the capital of France?")
     console.print(response)
 
+def main():
+    """Entry point that suppresses SystemExit traceback"""
+    import sys
+    import os
+    
+    # Suppress the "Task exception was never retrieved" error by setting the asyncio logger
+    # to a higher level before running the CLI
+    import logging
+    logging.getLogger('asyncio').setLevel(logging.ERROR)
+    
+    # Also suppress stderr temporarily during the exit to catch any remaining output
+    original_stderr = sys.stderr
+    
+    try:
+        # Run the CLI
+        cli(_anyio_backend="asyncio")
+    except SystemExit as e:
+        if e.code == 0:
+            # For successful exits, suppress any remaining error output
+            import io
+            sys.stderr = io.StringIO()
+        sys.exit(e.code)
+    finally:
+        # Restore stderr
+        sys.stderr = original_stderr
+
 if __name__ == "__main__":
     import sys
     import logging
     import warnings
+    import re
     
     # Suppress all warnings and asyncio error logging for cleaner output
     warnings.filterwarnings("ignore")
@@ -483,14 +510,6 @@ if __name__ == "__main__":
 
     sys.excepthook = suppress_asyncio_shutdown_errors
     
-    try:
-        asyncio.run(cli())
-    except SystemExit as e:
-        # For successful exits (code 0), don't show anything
-        if e.code != 0:
-            # For actual errors, show the exit code
-            sys.exit(e.code)
-    except KeyboardInterrupt:
-        # Handle Ctrl+C gracefully without traceback
-        print("\nInterrupted by user")
-        sys.exit(130)
+    # Run the CLI directly without wrapping in asyncio.run
+    # asyncclick handles its own async context
+    main()

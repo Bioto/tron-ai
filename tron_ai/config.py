@@ -18,7 +18,7 @@ PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "sonar-reasoning-pro")
 
 # Get default levels from environment variables with fallbacks
 DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "WARNING")
-DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "INFO")
+DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "WARNING")
 DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "WARNING")
 DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "WARNING")
 
@@ -38,6 +38,11 @@ LOGGING_CONFIG = {
             "level": os.getenv("TRON_LOG_HANDLER_LEVEL", "DEBUG"),
             "rich_tracebacks": os.getenv("TRON_LOG_RICH_TRACEBACKS", "true").lower() == "true",
             "tracebacks_show_locals": os.getenv("TRON_LOG_SHOW_LOCALS", "true").lower() == "true",
+        },
+        "simple": {
+            "class": "logging.StreamHandler",
+            "formatter": "rich",
+            "level": "CRITICAL",
         },
     },
     "loggers": {
@@ -72,8 +77,8 @@ LOGGING_CONFIG = {
             "propagate": False,
         },
         "asyncio": {
-            "handlers": ["rich"],
-            "level": DEFAULT_THIRD_PARTY_LEVEL,
+            "handlers": ["simple"],
+            "level": "CRITICAL",
             "propagate": False,
         },
         "multi_mcp_client": {
