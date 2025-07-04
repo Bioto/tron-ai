@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import patch, MagicMock
 
-from tron_intelligence.executors.agents.builtin.docker_agent import DockerAgent
-from tron_intelligence.executors.agents.models.agent import Agent
+from tron_ai.executors.agents.builtin.docker_agent import DockerAgent
+from tron_ai.executors.agents.models.agent import Agent
 from adalflow.core.tool_manager import ToolManager
 
 
@@ -58,7 +58,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import list_containers
+        from tron_ai.executors.agents.builtin.docker_agent import list_containers
 
         # Execute
         result = list_containers()
@@ -78,7 +78,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import create_container
+        from tron_ai.executors.agents.builtin.docker_agent import create_container
 
         # Execute
         result = create_container(
@@ -103,7 +103,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import start_container
+        from tron_ai.executors.agents.builtin.docker_agent import start_container
 
         # Execute
         result = start_container("test-container")
@@ -124,7 +124,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import stop_container
+        from tron_ai.executors.agents.builtin.docker_agent import stop_container
 
         # Execute
         result = stop_container("test-container")
@@ -145,7 +145,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import remove_container
+        from tron_ai.executors.agents.builtin.docker_agent import remove_container
 
         # Execute
         result = remove_container("test-container", force=True)
@@ -167,7 +167,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import get_container_logs
+        from tron_ai.executors.agents.builtin.docker_agent import get_container_logs
 
         # Execute
         result = get_container_logs("test-container", tail=10)
@@ -191,7 +191,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import inspect_container
+        from tron_ai.executors.agents.builtin.docker_agent import inspect_container
 
         # Execute
         result = inspect_container("test-container")
@@ -213,7 +213,7 @@ class TestDockerAgent:
         mock_run.return_value = mock_process
 
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import run_docker_command
+        from tron_ai.executors.agents.builtin.docker_agent import run_docker_command
 
         # Execute
         result = run_docker_command("docker ps")
@@ -229,7 +229,7 @@ class TestDockerAgent:
     def test_run_docker_command_validation(self, mock_run):
         """Test validation in run_docker_command tool."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.docker_agent import run_docker_command
+        from tron_ai.executors.agents.builtin.docker_agent import run_docker_command
 
         # Execute with invalid command
         result = run_docker_command("invalid command")

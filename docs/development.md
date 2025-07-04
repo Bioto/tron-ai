@@ -54,7 +54,7 @@ PERPLEXITY_API_KEY=your-perplexity-api-key
 
 # Development settings
 TRON_LOG_LEVEL_ROOT=DEBUG
-TRON_LOG_LEVEL_tron_intelligence=DEBUG
+TRON_LOG_LEVEL_tron-ai=DEBUG
 TRON_LOG_LEVEL_ADALFLOW=INFO
 ```
 
@@ -64,7 +64,7 @@ TRON_LOG_LEVEL_ADALFLOW=INFO
 graph TD
     subgraph "Project Root"
         ROOT[tron-ai/]
-        ROOT --> SRC[tron_intelligence/]
+        ROOT --> SRC[tron-ai/]
         ROOT --> TESTS[tests/]
         ROOT --> DOCS[docs/]
         ROOT --> CONFIG[Configuration Files]
@@ -90,7 +90,7 @@ graph TD
 
 ```
 tron-ai/
-├── tron_intelligence/                    # Main package
+├── tron-ai/                    # Main package
 │   ├── __init__.py            # Package initialization
 │   ├── cli.py                 # CLI entry point
 │   ├── config.py              # Configuration management
@@ -250,8 +250,8 @@ pytest --log-cli-level=DEBUG
 
 ```python
 import pytest
-from tron_intelligence.executors.completion import CompletionExecutor
-from tron_intelligence.executors.base import ExecutorConfig
+from tron_ai.executors.completion import CompletionExecutor
+from tron_ai.executors.base import ExecutorConfig
 
 class TestCompletionExecutor:
     """Test completion executor functionality."""
@@ -411,7 +411,7 @@ def complex_operation(
 ### Error Handling
 
 ```python
-from tron_intelligence.exceptions import TronAIError, ExecutionError
+from tron_ai.exceptions import TronAIError, ExecutionError
 
 def safe_operation():
     """Demonstrate proper error handling."""
@@ -509,7 +509,7 @@ export TRON_LOG_LEVEL_ROOT=DEBUG
             "name": "Debug CLI",
             "type": "python",
             "request": "launch",
-            "module": "tron_intelligence.cli",
+            "module": "tron-ai.cli",
             "args": ["ask", "Test question"],
             "env": {
                 "TRON_LOG_LEVEL_ROOT": "DEBUG"

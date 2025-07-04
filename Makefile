@@ -52,7 +52,7 @@ test-quiet:
 # Run tests with coverage
 .PHONY: test-coverage
 test-coverage:
-	$(PYTEST) --cov=tron_intelligence --cov-report=term-missing --cov-report=html --cov-fail-under=$(MIN_COVERAGE)
+	$(PYTEST) --cov=tron-ai --cov-report=term-missing --cov-report=html --cov-fail-under=$(MIN_COVERAGE)
 	@echo "Coverage report generated in htmlcov/index.html"
 
 # Run tests in watch mode (requires pytest-watch)
@@ -98,15 +98,15 @@ test-integration:
 # Ruff commands
 .PHONY: ruff
 ruff:
-	$(RUFF) check tron_intelligence tests
+	$(RUFF) check tron-ai tests
 
 .PHONY: ruff-fix
 ruff-fix:
-	$(RUFF) check --fix tron_intelligence tests
+	$(RUFF) check --fix tron-ai tests
 
 .PHONY: ruff-format
 ruff-format:
-	$(RUFF) format tron_intelligence tests
+	$(RUFF) format tron-ai tests
 
 .PHONY: ruff-all
 ruff-all: ruff-fix ruff-format
@@ -131,14 +131,14 @@ install:
 # Format code (optional - if black is in your dependencies)
 .PHONY: format
 format:
-	$(PYTHON) -m black tron_intelligence tests || echo "Black not installed"
-	$(PYTHON) -m isort tron_intelligence tests || echo "isort not installed"
+	$(PYTHON) -m black tron-ai tests || echo "Black not installed"
+	$(PYTHON) -m isort tron-ai tests || echo "isort not installed"
 
 # Lint code (optional - if linters are in your dependencies)
 .PHONY: lint
 lint:
-	$(PYTHON) -m flake8 tron_intelligence tests || echo "flake8 not installed"
-	$(PYTHON) -m mypy tron_intelligence || echo "mypy not installed"
+	$(PYTHON) -m flake8 tron-ai tests || echo "flake8 not installed"
+	$(PYTHON) -m mypy tron-ai || echo "mypy not installed"
 
 # Run all quality checks
 .PHONY: check

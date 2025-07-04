@@ -5,7 +5,7 @@ import time
 import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
-from tron_intelligence.utils.connection_manager import (
+from tron_ai.utils.connection_manager import (
     ConnectionManager,
     ChromaConnectionPool,
     get_connection_manager,

@@ -1,7 +1,7 @@
 import pytest
 from unittest.mock import patch, AsyncMock
 
-from tron_intelligence.modules.mcp.manager import MCPAgentManager as Manager
+from tron_ai.modules.mcp.manager import MCPAgentManager as Manager
 
 @pytest.fixture(autouse=True)
 def reset_singleton():
@@ -12,8 +12,8 @@ def reset_singleton():
 
 class TestMCPAgentManager:
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.manager.load_mcp_server_configs")
-    @patch("tron_intelligence.modules.mcp.manager.Agent")
+    @patch("tron_ai.modules.mcp.manager.load_mcp_server_configs")
+    @patch("tron_ai.modules.mcp.manager.Agent")
     async def test_initialize_and_get_agents(self, mock_mcp_agent, mock_load_configs):
         mock_load_configs.return_value = {
             "server1": {"host": "localhost"},
@@ -34,7 +34,7 @@ class TestMCPAgentManager:
         assert mock_mcp_agent.call_count == 2
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.manager.Agent")
+    @patch("tron_ai.modules.mcp.manager.Agent")
     async def test_add_agent(self, mock_mcp_agent):
         manager = Manager()
         manager._initialized = True
@@ -51,7 +51,7 @@ class TestMCPAgentManager:
         assert list(manager.agents.keys()).count("server3") == 1
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.manager.Agent")
+    @patch("tron_ai.modules.mcp.manager.Agent")
     async def test_remove_agent(self, mock_mcp_agent):
         manager = Manager()
         mock_agent = AsyncMock()
@@ -63,8 +63,8 @@ class TestMCPAgentManager:
         mock_agent.cleanup.assert_awaited_once()
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.manager.load_mcp_server_configs")
-    @patch("tron_intelligence.modules.mcp.manager.Agent")
+    @patch("tron_ai.modules.mcp.manager.load_mcp_server_configs")
+    @patch("tron_ai.modules.mcp.manager.Agent")
     async def test_reload_agents(self, mock_mcp_agent, mock_load_configs):
         # Setup initial state
         manager = Manager()

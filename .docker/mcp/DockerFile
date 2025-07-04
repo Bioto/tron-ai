@@ -7,7 +7,7 @@ RUN pip install --no-cache-dir uv
 
 # Copy project files for installation
 COPY pyproject.toml /app/
-COPY tron_intelligence/ /app/tron_intelligence/
+COPY tron-ai/ /app/tron-ai/
 COPY README.md /app/
 
 # Install project in development mode using uv

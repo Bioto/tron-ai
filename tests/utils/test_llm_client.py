@@ -10,9 +10,9 @@ import json
 import orjson
 from pydantic import BaseModel
 
-from tron_intelligence.utils.LLMClient import LLMClient, LLMClientConfig, BASE_PROMPT
-from tron_intelligence.prompts.models import Prompt
-from tron_intelligence.constants import LLM_DEFAULT_TEMPERATURE
+from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig, BASE_PROMPT
+from tron_ai.prompts.models import Prompt
+from tron_ai.constants import LLM_DEFAULT_TEMPERATURE
 from adalflow.core.types import FunctionOutput
 
 
@@ -64,7 +64,7 @@ class TestLLMClient:
         client = LLMClient(client=mock_model_client, config=config)
 
         # Mock the logger.info method to verify it's called
-        with patch("tron_intelligence.utils.LLMClient.logger.info") as mock_info:
+        with patch("tron_ai.utils.LLMClient.logger.info") as mock_info:
             client._log("Test message")
             mock_info.assert_called_once_with("[LLMClient] Test message")
 
@@ -75,11 +75,11 @@ class TestLLMClient:
         )
         client = LLMClient(client=mock_model_client, config=config)
 
-        with patch("tron_intelligence.utils.LLMClient.logger") as mock_logger:
+        with patch("tron_ai.utils.LLMClient.logger") as mock_logger:
             client._log("Test message")
             mock_logger.info.assert_not_called()
 
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     def test_build_generator_with_json(self, mock_generator_class, client):
         """Test building generator with JSON output."""
         mock_generator = Mock()
@@ -95,7 +95,7 @@ class TestLLMClient:
         assert call_kwargs["model_kwargs"]["temperature"] == LLM_DEFAULT_TEMPERATURE
         assert call_kwargs["model_kwargs"]["response_format"] == {"type": "json_object"}
 
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     def test_build_generator_without_json(
         self, mock_generator_class, mock_model_client
     ):
@@ -110,7 +110,7 @@ class TestLLMClient:
         call_kwargs = mock_generator_class.call_args[1]
         assert "response_format" not in call_kwargs["model_kwargs"]
 
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     def test_call_success(self, mock_generator_class, client):
         """Test successful call method."""
         # Setup mocks
@@ -131,7 +131,7 @@ class TestLLMClient:
         assert response.response == "Test response"
         mock_generator.assert_called_once()
 
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     def test_call_parse_error(self, mock_generator_class, client):
         """Test call method with parse error."""
         # Setup mocks
@@ -177,7 +177,7 @@ class TestLLMClient:
         assert result == []
         mock_tool_manager.execute_func.assert_not_called()
 
-    @patch("tron_intelligence.utils.LLMClient.Function")
+    @patch("tron_ai.utils.LLMClient.Function")
     def test_execute_tool_calls_with_tools(self, mock_function_class, client):
         """Test executing tool calls."""
         # Setup mocks
@@ -243,7 +243,7 @@ class TestLLMClient:
         assert not client._should_continue_iteration(dataset, response, 9, 10)
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     async def test_execute_direct_call(self, mock_generator_class, client):
         """Test direct call execution."""
         # Setup mocks
@@ -284,8 +284,8 @@ class TestLLMClient:
         return mock_generator
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.LLMClient.Generator")
-    @patch("tron_intelligence.utils.LLMClient.Function")
+    @patch("tron_ai.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Function")
     async def test_fcall_with_tool_manager_multiple_iterations(
         self, mock_function_class, mock_generator_class, client
     ):
@@ -321,7 +321,7 @@ class TestLLMClient:
         mock_function_class.from_dict.assert_called_once()
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.LLMClient.Generator")
+    @patch("tron_ai.utils.LLMClient.Generator")
     async def test_fcall_without_tool_manager(self, mock_generator_class, client):
         """Test fcall without tool manager."""
         # Setup mocks

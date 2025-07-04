@@ -68,7 +68,7 @@ PERPLEXITY_API_KEY=your-perplexity-api-key
 
 # Logging (optional)
 TRON_LOG_LEVEL_ROOT=WARNING
-TRON_LOG_LEVEL_tron_intelligence=INFO
+TRON_LOG_LEVEL_tron-ai=INFO
 ```
 
 ## Basic Usage
@@ -127,7 +127,7 @@ make ruff
 
 ```
 tron-ai/
-├── tron_intelligence/            # Main package
+├── tron-ai/            # Main package
 ├── tests/              # Test suite
 ├── docs/               # Documentation
 └── pyproject.toml      # Project configuration

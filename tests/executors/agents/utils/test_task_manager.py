@@ -1,12 +1,12 @@
 import pytest
 from unittest.mock import AsyncMock, Mock, patch, PropertyMock
 
-from tron_intelligence.executors.agents.utils.task_manager import TaskExecutor
-from tron_intelligence.executors.agents.models.agent import Agent
-from tron_intelligence.modules.tasks.models import AgentAssignedTask
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.executors.base import ExecutorConfig
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.executors.agents.utils.task_manager import TaskExecutor
+from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.modules.tasks.models import AgentAssignedTask
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.executors.base import ExecutorConfig
+from tron_ai.prompts.models import Prompt
 
 
 class TestTaskExecutor:
@@ -83,8 +83,8 @@ class TestTaskExecutor:
         """Fixture for a TaskExecutor instance."""
         return TaskExecutor(mock_client, mock_config)
 
-    @patch("tron_intelligence.modules.tasks.manager.Manager.add_task")
-    @patch("tron_intelligence.modules.tasks.manager.Manager.execute_all")
+    @patch("tron_ai.modules.tasks.manager.Manager.add_task")
+    @patch("tron_ai.modules.tasks.manager.Manager.execute_all")
     async def test_execute_tasks_success(
         self, mock_execute_all, mock_add_task, task_executor, mock_tasks
     ):
@@ -129,8 +129,8 @@ class TestTaskExecutor:
                 assert hasattr(task.result, "response")
                 assert task.result.response.startswith("Result for")
 
-    @patch("tron_intelligence.modules.tasks.manager.Manager.add_task")
-    @patch("tron_intelligence.modules.tasks.manager.Manager.execute_all")
+    @patch("tron_ai.modules.tasks.manager.Manager.add_task")
+    @patch("tron_ai.modules.tasks.manager.Manager.execute_all")
     async def test_execute_tasks_with_failed_task(
         self, mock_execute_all, mock_add_task, task_executor, mock_tasks
     ):
@@ -241,7 +241,7 @@ class TestTaskExecutor:
             assert "Instructions:" in result
 
     @patch(
-        "tron_intelligence.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
+        "tron_ai.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
     )
     async def test_task_handler_success(
         self, mock_build_query, task_executor, mock_tasks, mock_client
@@ -303,7 +303,7 @@ class TestTaskExecutor:
         mock_build_query.assert_called_once()
 
     @patch(
-        "tron_intelligence.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
+        "tron_ai.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
     )
     async def test_task_handler_client_error(
         self, mock_build_query, task_executor, mock_tasks, mock_client
@@ -368,7 +368,7 @@ class TestTaskExecutor:
         mock_build_query.assert_called_once()
 
     @patch(
-        "tron_intelligence.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
+        "tron_ai.executors.agents.utils.task_manager.TaskExecutor._build_operations_query"
     )
     async def test_task_handler_no_agent(
         self, mock_build_query, task_executor, mock_tasks
@@ -382,9 +382,9 @@ class TestTaskExecutor:
         # Create a task handler by extracting it from execute_tasks
         async def extract_handler():
             with (
-                patch("tron_intelligence.modules.tasks.manager.Manager.add_task"),
+                patch("tron_ai.modules.tasks.manager.Manager.add_task"),
                 patch(
-                    "tron_intelligence.modules.tasks.manager.Manager.execute_all"
+                    "tron_ai.modules.tasks.manager.Manager.execute_all"
                 ) as mock_execute_all,
             ):
 

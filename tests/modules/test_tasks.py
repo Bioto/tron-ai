@@ -4,10 +4,10 @@ import pytest
 from unittest.mock import Mock
 import asyncio
 
-from tron_intelligence.modules.tasks.models import AgentAssignedTask, Task
-from tron_intelligence.executors.agents.models.agent import Agent
-from tron_intelligence.prompts.models import Prompt
-from tron_intelligence.modules.tasks import Manager as TaskManager
+from tron_ai.modules.tasks.models import AgentAssignedTask, Task
+from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.prompts.models import Prompt
+from tron_ai.modules.tasks import Manager as TaskManager
 
 # Rebuild the Task model to resolve forward references
 Task.model_rebuild()

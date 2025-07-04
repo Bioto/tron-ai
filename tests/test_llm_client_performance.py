@@ -15,10 +15,10 @@ import pytest
 from datetime import timedelta
 from pydantic import BaseModel
 
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.models.config import LLMClientConfig
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.models.config import LLMClientConfig
 from adalflow.core.tool_manager import ToolManager
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.prompts.models import Prompt
 
 
 # Create a proper Pydantic model for testing
@@ -45,7 +45,7 @@ class TestLLMClientPerformance:
         mock_response = Mock()
         mock_response.data = orjson.dumps(
             {"tool_calls": [], "response": "Test response"}
-        )
+        )   
         mock_generator.return_value = mock_response
 
         # Mock system prompt with output format

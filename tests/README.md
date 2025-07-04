@@ -38,7 +38,7 @@ pytest -v
 With coverage information:
 
 ```bash
-pytest --cov=tron_intelligence
+pytest --cov=tron-ai
 ```
 
 ## Writing Tests

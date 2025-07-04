@@ -11,7 +11,7 @@ import tempfile
 import time
 import pytest
 
-from tron_intelligence.utils.file_manager_async import (
+from tron_ai.utils.file_manager_async import (
     read_file_async,
     write_file_async,
     append_file_async,

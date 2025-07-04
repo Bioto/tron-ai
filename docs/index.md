@@ -205,7 +205,7 @@ tron-ai assistant "I want to learn about machine learning"
 
 ```
 tron-ai/
-├── tron_intelligence/
+├── tron-ai/
 │   ├── cli.py              # CLI entry point
 │   ├── executors/          # Execution strategies
 │   │   ├── agents/         # Agent implementations

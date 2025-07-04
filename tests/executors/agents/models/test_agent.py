@@ -1,8 +1,8 @@
 import pytest
 from unittest.mock import Mock
 
-from tron_intelligence.executors.agents.models.agent import Agent, AgentExecutorResponse
-from tron_intelligence.prompts.models import Prompt, ToolCall
+from tron_ai.executors.agents.models.agent import Agent, AgentExecutorResponse
+from tron_ai.prompts.models import Prompt, ToolCall
 from adalflow.core.tool_manager import ToolManager
 
 

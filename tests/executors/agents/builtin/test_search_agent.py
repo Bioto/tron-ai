@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import patch, AsyncMock, MagicMock
 
-from tron_intelligence.executors.agents.builtin.search_agent import (
+from tron_ai.executors.agents.builtin.search_agent import (
     SearchAgent,
     perplexity_config_exists,
 )
-from tron_intelligence.executors.agents.models.agent import Agent
+from tron_ai.executors.agents.models.agent import Agent
 from adalflow.core.tool_manager import ToolManager
 
 
@@ -45,7 +45,7 @@ class TestSearchAgent:
         for expected_function in expected_functions:
             assert expected_function in tool_functions
 
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.config")
+    @patch("tron_ai.executors.agents.builtin.search_agent.config")
     def test_perplexity_config_exists_true(self, mock_config):
         """Test perplexity_config_exists when config exists."""
         # Setup
@@ -55,7 +55,7 @@ class TestSearchAgent:
         # Execute & verify
         assert perplexity_config_exists() is True
 
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.config")
+    @patch("tron_ai.executors.agents.builtin.search_agent.config")
     def test_perplexity_config_exists_false_no_key(self, mock_config):
         """Test perplexity_config_exists when API key is missing."""
         # Setup
@@ -65,7 +65,7 @@ class TestSearchAgent:
         # Execute & verify
         assert perplexity_config_exists() is False
 
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.config")
+    @patch("tron_ai.executors.agents.builtin.search_agent.config")
     def test_perplexity_config_exists_false_no_model(self, mock_config):
         """Test perplexity_config_exists when model is missing."""
         # Setup
@@ -76,12 +76,12 @@ class TestSearchAgent:
         assert perplexity_config_exists() is False
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     @patch("aiohttp.ClientSession.post")
     async def test_query_perplexity_success(self, mock_post, mock_config_exists):
         """Test the query_perplexity tool for successful case."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import query_perplexity
+        from tron_ai.executors.agents.builtin.search_agent import query_perplexity
 
         # Setup
         mock_config_exists.return_value = True
@@ -114,11 +114,11 @@ class TestSearchAgent:
         assert result["metadata"]["finish_reason"] == "stop"
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     async def test_query_perplexity_no_config(self, mock_config_exists):
         """Test the query_perplexity tool when config is missing."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import query_perplexity
+        from tron_ai.executors.agents.builtin.search_agent import query_perplexity
 
         # Setup
         mock_config_exists.return_value = False
@@ -131,12 +131,12 @@ class TestSearchAgent:
         assert "not configured" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     @patch("aiohttp.ClientSession.post")
     async def test_query_perplexity_api_error(self, mock_post, mock_config_exists):
         """Test the query_perplexity tool when API returns an error."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import query_perplexity
+        from tron_ai.executors.agents.builtin.search_agent import query_perplexity
 
         # Setup
         mock_config_exists.return_value = True
@@ -154,11 +154,11 @@ class TestSearchAgent:
         assert result["details"] == "API Error"
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.query_perplexity")
+    @patch("tron_ai.executors.agents.builtin.search_agent.query_perplexity")
     async def test_search_with_context(self, mock_query_perplexity):
         """Test the search_with_context tool."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import search_with_context
+        from tron_ai.executors.agents.builtin.search_agent import search_with_context
 
         # Setup
         mock_query_perplexity.return_value = {
@@ -182,11 +182,11 @@ class TestSearchAgent:
         assert result["response"] == "Search result with context"
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     async def test_search_with_context_no_config(self, mock_config_exists):
         """Test the search_with_context tool when config is missing."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import search_with_context
+        from tron_ai.executors.agents.builtin.search_agent import search_with_context
 
         # Setup
         mock_config_exists.return_value = False
@@ -199,14 +199,14 @@ class TestSearchAgent:
         assert "not configured" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.query_perplexity")
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.query_perplexity")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     async def test_batch_search_success(
         self, mock_config_exists, mock_query_perplexity
     ):
         """Test the batch_search tool for successful case."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import batch_search
+        from tron_ai.executors.agents.builtin.search_agent import batch_search
 
         # Setup
         mock_config_exists.return_value = True
@@ -228,11 +228,11 @@ class TestSearchAgent:
         assert result["summary"]["failed_queries"] == 1
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.agents.builtin.search_agent.perplexity_config_exists")
+    @patch("tron_ai.executors.agents.builtin.search_agent.perplexity_config_exists")
     async def test_batch_search_no_config(self, mock_config_exists):
         """Test the batch_search tool when config is missing."""
         # Import the function directly to test it
-        from tron_intelligence.executors.agents.builtin.search_agent import batch_search
+        from tron_ai.executors.agents.builtin.search_agent import batch_search
 
         # Setup
         mock_config_exists.return_value = False

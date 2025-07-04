@@ -1,9 +1,9 @@
 import pytest
 from unittest.mock import patch
 
-from tron_intelligence.executors.agents.builtin.file_agent import FileAgent
+from tron_ai.executors.agents.builtin.file_agent import FileAgent
 from adalflow.core.tool_manager import ToolManager
-from tron_intelligence.executors.agents.models.agent import Agent
+from tron_ai.executors.agents.models.agent import Agent
 
 
 class TestFileAgent:
@@ -57,7 +57,7 @@ class TestFileAgent:
                 f"Required tool {tool_name} not found in FileAgent tools"
             )
 
-    @patch("tron_intelligence.utils.file_manager.create_file")
+    @patch("tron_ai.utils.file_manager.create_file")
     async def test_create_file_tool_called(self, mock_create_file, file_agent):
         """Test that the create_file tool is properly callable."""
         # Setup mock
@@ -79,7 +79,7 @@ class TestFileAgent:
         mock_create_file.assert_called_once_with("test.txt", "Test content")
         assert result.output["success"] is True
 
-    @patch("tron_intelligence.utils.file_manager.read_file")
+    @patch("tron_ai.utils.file_manager.read_file")
     async def test_read_file_tool_called(self, mock_read_file, file_agent):
         """Test that the read_file tool is properly callable."""
         # Setup mock
@@ -103,7 +103,7 @@ class TestFileAgent:
         assert result.output["success"] is True
         assert result.output["content"] == "File content"
 
-    @patch("tron_intelligence.utils.file_manager.update_file")
+    @patch("tron_ai.utils.file_manager.update_file")
     async def test_update_file_tool_called(self, mock_update_file, file_agent):
         """Test that the update_file tool is properly callable."""
         # Setup mock
@@ -129,7 +129,7 @@ class TestFileAgent:
         )
         assert result.output["success"] is True
 
-    @patch("tron_intelligence.utils.file_manager.delete_file")
+    @patch("tron_ai.utils.file_manager.delete_file")
     async def test_delete_file_tool_called(self, mock_delete_file, file_agent):
         """Test that the delete_file tool is properly callable."""
         # Setup mock
@@ -151,7 +151,7 @@ class TestFileAgent:
         mock_delete_file.assert_called_once_with("test.txt", True)
         assert result.output["success"] is True
 
-    @patch("tron_intelligence.utils.file_manager.list_directory")
+    @patch("tron_ai.utils.file_manager.list_directory")
     async def test_list_directory_tool_called(self, mock_list_directory, file_agent):
         """Test that the list_directory tool is properly callable."""
         # Setup mock

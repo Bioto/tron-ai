@@ -5,7 +5,7 @@ from unittest.mock import patch
 import os
 import tempfile
 
-from tron_intelligence.utils.file_manager import (
+from tron_ai.utils.file_manager import (
     create_file,
     read_file,
     update_file,

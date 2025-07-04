@@ -94,7 +94,7 @@ The Code Agent currently has an empty tool manager but provides comprehensive co
 tron-ai agent "Analyze this Python module for security issues"
 
 # Direct usage
-from tron_intelligence.executors.agents.builtin import CodeAgent
+from tron_ai.executors.agents.builtin import CodeAgent
 
 agent = CodeAgent()
 # Note: CodeAgent works through LLM interactions, not direct method calls
@@ -276,7 +276,7 @@ The MCP Agent Manager (`MCPAgentManager`) is a singleton responsible for managin
 #### Example Usage
 
 ```python
-from tron_intelligence.modules.mcp.manager import MCPAgentManager
+from tron_ai.modules.mcp.manager import MCPAgentManager
 
 manager = MCPAgentManager()
 await manager.initialize("mcp_servers.json")  # Load all agents from config
@@ -515,9 +515,9 @@ flowchart TD
 ### Custom Agent Template
 
 ```python
-from tron_intelligence.executors.agents.models.agent import Agent
-from tron_intelligence.prompts.models import Prompt
-from tron_intelligence.tools import ToolManager
+from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.prompts.models import Prompt
+from tron_ai.tools import ToolManager
 
 class CustomAgent(Agent):
     """Custom agent for specific tasks."""

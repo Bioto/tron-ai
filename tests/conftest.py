@@ -1,11 +1,11 @@
-"""Common test fixtures for the tron_intelligence test suite."""
+"""Common test fixtures for the tron_ai test suite."""
 
 import pytest
 from unittest.mock import Mock, AsyncMock
 
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.prompts.models import Prompt
-from tron_intelligence.executors.base import ExecutorConfig
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.prompts.models import Prompt
+from tron_ai.executors.base import ExecutorConfig
 
 
 @pytest.fixture

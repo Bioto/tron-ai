@@ -23,7 +23,7 @@
 Abstract base class for all executors.
 
 ```python
-from tron_intelligence.executors.base import BaseExecutor, ExecutorConfig
+from tron_ai.executors.base import BaseExecutor, ExecutorConfig
 
 class BaseExecutor(ABC):
     def __init__(self, config: ExecutorConfig, *args, **kwargs):
@@ -43,7 +43,7 @@ class BaseExecutor(ABC):
 Simple completion executor for direct LLM calls.
 
 ```python
-from tron_intelligence.executors.completion import CompletionExecutor
+from tron_ai.executors.completion import CompletionExecutor
 
 executor = CompletionExecutor(config=ExecutorConfig(client=llm_client))
 
@@ -60,7 +60,7 @@ response = executor.execute(
 Executes multi-step reasoning chains.
 
 ```python
-from tron_intelligence.executors.chain import ChainExecutor, Step
+from tron_ai.executors.chain import ChainExecutor, Step
 
 executor = ChainExecutor(config=ExecutorConfig(client=llm_client))
 
@@ -79,7 +79,7 @@ results = executor.execute(
 Orchestrates multiple agents for complex tasks.
 
 ```python
-from tron_intelligence.executors.agents import AgentExecutor
+from tron_ai.executors.agents import AgentExecutor
 
 # Synchronous execution
 executor = AgentExecutor(config=config, agents=[agent1, agent2])
@@ -100,7 +100,7 @@ result = await executor.execute(
 ### Agent Base Class
 
 ```python
-from tron_intelligence.executors.agents.models.agent import Agent
+from tron_ai.executors.agents.models.agent import Agent
 
 class Agent(BaseModel):
     name: str
@@ -117,7 +117,7 @@ class Agent(BaseModel):
 Analyzes and manipulates code.
 
 ```python
-from tron_intelligence.executors.agents.builtin import CodeAgent
+from tron_ai.executors.agents.builtin import CodeAgent
 
 agent = CodeAgent()
 # Tools: analyze_code_structure, check_code_quality, format_code,
@@ -129,7 +129,7 @@ agent = CodeAgent()
 Manages Docker containers.
 
 ```python
-from tron_intelligence.executors.agents.builtin import DockerAgent
+from tron_ai.executors.agents.builtin import DockerAgent
 
 agent = DockerAgent()
 # Tools: list_containers, create_container, start_container,
@@ -141,7 +141,7 @@ agent = DockerAgent()
 Handles file system operations.
 
 ```python
-from tron_intelligence.executors.agents.builtin import FileAgent
+from tron_ai.executors.agents.builtin import FileAgent
 
 agent = FileAgent()
 # Tools: create_file, read_file, update_file, delete_file, list_directory
@@ -152,7 +152,7 @@ agent = FileAgent()
 Model Context Protocol operations.
 
 ```python
-from tron_intelligence.modules.mcp.agent import Agent as MCPAgent
+from tron_ai.modules.mcp.agent import Agent as MCPAgent
 
 # MCP agents are managed through MCPAgentManager
 # See MCPAgentManager section below for usage
@@ -163,7 +163,7 @@ from tron_intelligence.modules.mcp.agent import Agent as MCPAgent
 Manages a pool of MCPAgent instances, each connected to a different MCP server. Provides async initialization, dynamic agent addition/removal, and config-based reloading.
 
 ```python
-from tron_intelligence.modules.mcp.manager import MCPAgentManager
+from tron_ai.modules.mcp.manager import MCPAgentManager
 
 manager = MCPAgentManager()
 await manager.initialize("mcp_servers.json")  # Load all agents from config
@@ -192,7 +192,7 @@ await manager.cleanup()
 Web search capabilities.
 
 ```python
-from tron_intelligence.executors.agents.builtin import SearchAgent
+from tron_ai.executors.agents.builtin import SearchAgent
 
 agent = SearchAgent()
 # Tools: search_internet
@@ -205,7 +205,7 @@ agent = SearchAgent()
 Wrapper for LLM operations with tool support.
 
 ```python
-from tron_intelligence.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
 
 config = LLMClientConfig(
     model_name="gpt-4o",
@@ -241,7 +241,7 @@ response = client.fcall(
 Manages database connections and resource lifecycle.
 
 ```python
-from tron_intelligence.utils.connection_manager import get_connection_manager
+from tron_ai.utils.connection_manager import get_connection_manager
 
 manager = get_connection_manager()
 
@@ -270,7 +270,7 @@ manager.close_connection("all")
 ### ExecutorConfig
 
 ```python
-from tron_intelligence.executors.base import ExecutorConfig
+from tron_ai.executors.base import ExecutorConfig
 
 config = ExecutorConfig(
     client=llm_client,      # Required: LLMClient instance
@@ -282,7 +282,7 @@ config = ExecutorConfig(
 ### Prompt
 
 ```python
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.prompts.models import Prompt
 
 prompt = Prompt(
     prompt="Template with {variable}",
@@ -296,7 +296,7 @@ rendered = prompt.build(variable="value")
 ### Task
 
 ```python
-from tron_intelligence.modules.tasks import Task
+from tron_ai.modules.tasks import Task
 
 task = Task(
     identifier="task-001",
@@ -314,7 +314,7 @@ task = Task(
 Custom exception hierarchy for better error handling.
 
 ```python
-from tron_intelligence.exceptions import (
+from tron_ai.exceptions import (
     TronAIError,      # Base exception
     ExecutionError,   # Task execution errors
     AgentError,       # Agent-related errors
@@ -338,7 +338,7 @@ except TronAIError as e:
 Centralized configuration constants.
 
 ```python
-from tron_intelligence.constants import (
+from tron_ai.constants import (
     # LLM Settings
     LLM_MAX_RETRIES,
     LLM_DEFAULT_TEMPERATURE,
@@ -367,10 +367,10 @@ from tron_intelligence.constants import (
 ### Basic Completion
 
 ```python
-from tron_intelligence.utils.LLMClient import LLMClient, LLMClientConfig
-from tron_intelligence.executors.completion import CompletionExecutor
-from tron_intelligence.executors.base import ExecutorConfig
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.executors.completion import CompletionExecutor
+from tron_ai.executors.base import ExecutorConfig
+from tron_ai.prompts.models import Prompt
 
 # Setup
 client = LLMClient(
@@ -391,8 +391,8 @@ response = executor.execute(
 ### Agent-Based Task
 
 ```python
-from tron_intelligence.executors.agents import AgentExecutor
-from tron_intelligence.executors.agents.builtin import CodeAgent, FileAgent
+from tron_ai.executors.agents import AgentExecutor
+from tron_ai.executors.agents.builtin import CodeAgent, FileAgent
 
 async def analyze_project():
     agents = [CodeAgent(), FileAgent()]
@@ -412,7 +412,7 @@ async def analyze_project():
 ### Memory-Enabled Assistant
 
 ```python
-from tron_intelligence.cli import generate_memory_tool
+from tron_ai.cli import generate_memory_tool
 
 # Create memory tool
 memory_tool = generate_memory_tool()

@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import AsyncMock, Mock
 
-from tron_intelligence.executors.base import ExecutorConfig
-from tron_intelligence.executors.completion import CompletionExecutor
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.executors.base import ExecutorConfig
+from tron_ai.executors.completion import CompletionExecutor
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.prompts.models import Prompt
 
 
 class MockCompletionExecutor(CompletionExecutor):
@@ -88,6 +88,6 @@ class TestCompletionExecutorIntegration:
 
     def test_inheritance(self, completion_executor):
         """Test that CompletionExecutor inherits from BaseExecutor."""
-        from tron_intelligence.executors.base import BaseExecutor
+        from tron_ai.executors.base import BaseExecutor
 
         assert isinstance(completion_executor, BaseExecutor)

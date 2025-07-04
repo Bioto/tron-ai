@@ -9,7 +9,7 @@ import pytest
 # Add the parent directory to the path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from tron_intelligence.utils.process_monitor import ProcessMonitor
+from tron_ai.utils.process_monitor import ProcessMonitor
 
 
 class TestAsyncProcessMonitor:

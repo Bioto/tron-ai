@@ -77,7 +77,7 @@ PERPLEXITY_API_KEY=your-perplexity-api-key
 
 # Logging
 TRON_LOG_LEVEL_ROOT=WARNING
-TRON_LOG_LEVEL_tron_intelligence=INFO
+TRON_LOG_LEVEL_tron-ai=INFO
 EOF
 ```
 
@@ -371,7 +371,7 @@ tron-ai agent "Task" --disable-tools docker
 ```bash
 # Set logging levels via environment
 export TRON_LOG_LEVEL_ROOT=WARNING
-export TRON_LOG_LEVEL_tron_intelligence=DEBUG
+export TRON_LOG_LEVEL_tron-ai=DEBUG
 export TRON_LOG_LEVEL_ADALFLOW=INFO
 
 # Or use CLI flags

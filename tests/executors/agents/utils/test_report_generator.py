@@ -1,11 +1,11 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from tron_intelligence.executors.agents.utils.report_generator import ReportGenerator
-from tron_intelligence.executors.agents.models.agent import Agent
-from tron_intelligence.modules.tasks.models import AgentAssignedTask
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.executors.agents.utils.report_generator import ReportGenerator
+from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.modules.tasks.models import AgentAssignedTask
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.prompts.models import Prompt
 
 
 class TestReportGenerator:
@@ -177,16 +177,16 @@ class TestReportGenerator:
         assert "[task2] Test task 2" not in task_results_section
 
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._create_task_summaries"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._create_task_summaries"
     )
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._format_task_info"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._format_task_info"
     )
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._generate_detailed_report"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._generate_detailed_report"
     )
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._create_execution_summary"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._create_execution_summary"
     )
     def test_generate_report(
         self,
@@ -229,13 +229,13 @@ class TestReportGenerator:
         assert "Detailed report" in result
 
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._create_task_summaries"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._create_task_summaries"
     )
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._format_task_info"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._format_task_info"
     )
     @patch(
-        "tron_intelligence.executors.agents.utils.report_generator.ReportGenerator._create_execution_summary"
+        "tron_ai.executors.agents.utils.report_generator.ReportGenerator._create_execution_summary"
     )
     def test_generate_detailed_report(
         self,

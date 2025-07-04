@@ -1,10 +1,10 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from tron_intelligence.executors.agents.utils.agent_selector import AgentSelector
-from tron_intelligence.executors.agents.models.agent import Agent
-from tron_intelligence.modules.tasks import Task
-from tron_intelligence.utils.LLMClient import LLMClient
+from tron_ai.executors.agents.utils.agent_selector import AgentSelector
+from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.modules.tasks import Task
+from tron_ai.utils.LLMClient import LLMClient
 
 
 class TestAgentSelector:
@@ -48,7 +48,7 @@ class TestAgentSelector:
         """Fixture for an AgentSelector instance."""
         return AgentSelector(mock_client)
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agent_success(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents
     ):
@@ -69,7 +69,7 @@ class TestAgentSelector:
         mock_client.call.assert_called_once()
         assert result == mock_agents[1]  # Should be the second agent
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agent_no_match(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents
     ):
@@ -92,7 +92,7 @@ class TestAgentSelector:
         mock_client.call.assert_called_once()
         assert result is None  # Should not find any matching agent
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agents_all_assigned(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents, mock_tasks
     ):
@@ -125,7 +125,7 @@ class TestAgentSelector:
         for i, task in enumerate(assigned_tasks):
             assert task.agent == mock_agents[i]
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agents_partial_assignment(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents, mock_tasks
     ):
@@ -171,7 +171,7 @@ class TestAgentSelector:
         assert found_task1
         assert found_task2
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agents_invalid_agent(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents, mock_tasks
     ):
@@ -200,7 +200,7 @@ class TestAgentSelector:
         assert len(unassigned_tasks) == 1  # One task couldn't be assigned
         assert assigned_tasks[0].identifier == "task2"
 
-    @patch("tron_intelligence.executors.agents.utils.agent_selector.build_router_prompt")
+    @patch("tron_ai.executors.agents.utils.agent_selector.build_router_prompt")
     def test_select_agents_no_assignments(
         self, mock_build_prompt, agent_selector, mock_client, mock_agents, mock_tasks
     ):

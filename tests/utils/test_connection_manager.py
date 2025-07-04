@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import Mock, patch
 
-from tron_intelligence.utils.connection_manager import (
+from tron_ai.utils.connection_manager import (
     ConnectionManager,
     get_connection_manager,
     get_chroma_client,
@@ -38,7 +38,7 @@ class TestConnectionManager:
         assert hasattr(manager, "_health_check_interval")
         assert hasattr(manager, "_last_health_check")
 
-    @patch("tron_intelligence.utils.connection_manager.chromadb.PersistentClient")
+    @patch("tron_ai.utils.connection_manager.chromadb.PersistentClient")
     def test_chroma_client_lazy_initialization(self, mock_chroma):
         """Test lazy initialization of ChromaDB client through connection pool."""
         mock_client = Mock()
@@ -58,7 +58,7 @@ class TestConnectionManager:
         # Release it back to the pool
         manager.release_pooled_connection(pooled_conn)
 
-    @patch("tron_intelligence.utils.connection_manager.chromadb.PersistentClient")
+    @patch("tron_ai.utils.connection_manager.chromadb.PersistentClient")
     def test_memory_collection_lazy_initialization(self, mock_chroma):
         """Test lazy initialization of memory collection."""
         mock_client = Mock()
@@ -76,7 +76,7 @@ class TestConnectionManager:
             "memory", get_or_create=True
         )
 
-    @patch("tron_intelligence.utils.connection_manager.chromadb.PersistentClient")
+    @patch("tron_ai.utils.connection_manager.chromadb.PersistentClient")
     def test_get_connection_context_manager(self, mock_chroma):
         """Test get_connection context manager."""
         manager = ConnectionManager()
@@ -101,7 +101,7 @@ class TestConnectionManager:
                 pass
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.connection_manager.chromadb.PersistentClient")
+    @patch("tron_ai.utils.connection_manager.chromadb.PersistentClient")
     async def test_get_async_connection_context_manager(self, mock_chroma):
         """Test get_async_connection context manager."""
         manager = ConnectionManager()
@@ -164,7 +164,7 @@ class TestConnectionManager:
             ConnectionManager.cleanup_all_instances()
             mock_cleanup.assert_called_once()
 
-    @patch("tron_intelligence.utils.connection_manager.atexit.register")
+    @patch("tron_ai.utils.connection_manager.atexit.register")
     def test_atexit_registration(self, mock_atexit):
         """Test that cleanup is registered with atexit."""
         # Clear singleton instance for this test
@@ -173,7 +173,7 @@ class TestConnectionManager:
         manager = ConnectionManager()
         mock_atexit.assert_called_once_with(manager._cleanup_all)
 
-    @patch("tron_intelligence.utils.connection_manager.chromadb.PersistentClient")
+    @patch("tron_ai.utils.connection_manager.chromadb.PersistentClient")
     def test_connection_pool_functionality(self, mock_chroma):
         """Test connection pool acquire and release."""
         mock_clients = [Mock() for _ in range(3)]
@@ -228,7 +228,7 @@ class TestModuleFunctions:
     def test_get_chroma_client(self):
         """Test get_chroma_client function."""
         with patch(
-            "tron_intelligence.utils.connection_manager.chromadb.PersistentClient"
+            "tron_ai.utils.connection_manager.chromadb.PersistentClient"
         ) as mock_chroma:
             mock_client = Mock()
             mock_chroma.return_value = mock_client
@@ -244,7 +244,7 @@ class TestModuleFunctions:
     def test_get_memory_collection(self):
         """Test get_memory_collection function."""
         with patch(
-            "tron_intelligence.utils.connection_manager.chromadb.PersistentClient"
+            "tron_ai.utils.connection_manager.chromadb.PersistentClient"
         ) as mock_chroma:
             mock_client = Mock()
             mock_collection = Mock()
@@ -253,7 +253,7 @@ class TestModuleFunctions:
 
             # Reset singleton for clean test
             ConnectionManager._instance = None
-            import tron_intelligence.utils.connection_manager as cm_mod
+            import tron_ai.utils.connection_manager as cm_mod
 
             cm_mod._connection_manager = (
                 ConnectionManager()

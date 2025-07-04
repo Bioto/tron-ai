@@ -4,7 +4,7 @@ import pytest
 import time
 import json as std_json
 
-from tron_intelligence.utils import json
+from tron_ai.utils import json
 
 
 class TestJSONPerformance:
@@ -192,8 +192,8 @@ class TestJSONMigration:
     def test_imports_work(self):
         """Test that all migrated imports work."""
         # These imports should not raise errors
-        from tron_intelligence.utils import json
-        from tron_intelligence.utils import json as json_utils
+        from tron_ai.utils import json
+        from tron_ai.utils import json as json_utils
 
         # This is to avoid unused import warnings
         assert json is not None
@@ -201,8 +201,8 @@ class TestJSONMigration:
 
     def test_docker_agent_json_usage(self):
         """Test that docker agent correctly uses json_utils."""
-        from tron_intelligence.executors.agents.builtin.docker_agent import json
-        from tron_intelligence.utils import json
+        from tron_ai.executors.agents.builtin.docker_agent import json
+        from tron_ai.utils import json
 
         # Should be using our json_utils
         assert json is json
@@ -225,7 +225,7 @@ if __name__ == "__main__":
     }
 
     # Run benchmark
-    from tron_intelligence.utils import json
+    from tron_ai.utils import json
 
     results = json.benchmark_json_performance(test_data)
 

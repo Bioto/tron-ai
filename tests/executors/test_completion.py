@@ -2,10 +2,10 @@ import pytest
 from unittest.mock import AsyncMock, Mock, patch
 from pydantic import BaseModel
 
-from tron_intelligence.executors.base import ExecutorConfig, BaseExecutor
-from tron_intelligence.executors.completion import CompletionExecutor
-from tron_intelligence.utils.LLMClient import LLMClient
-from tron_intelligence.prompts.models import Prompt
+from tron_ai.executors.base import ExecutorConfig, BaseExecutor
+from tron_ai.executors.completion import CompletionExecutor
+from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.prompts.models import Prompt
 from adalflow.core.tool_manager import ToolManager
 
 
@@ -175,7 +175,7 @@ class TestCompletionExecutor:
             )
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.executors.completion.CompletionExecutor.execute", autospec=True)
+    @patch("tron_ai.executors.completion.CompletionExecutor.execute", autospec=True)
     async def test_execute_with_direct_patch(
         self, mock_execute, mock_client, mock_prompt, mock_tool_manager
     ):

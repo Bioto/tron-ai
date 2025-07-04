@@ -3,7 +3,7 @@
 import pytest
 from unittest.mock import patch
 
-from tron_intelligence.utils.file_manager import (
+from tron_ai.utils.file_manager import (
     create_file,
     read_file,
     update_file,
@@ -16,8 +16,8 @@ class TestFileManager:
     """Test suite for file manager functions."""
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.write_file_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.write_file_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_create_file_success(self, mock_exists_async, mock_write_async):
         """Test successful file creation."""
         mock_exists_async.return_value = False
@@ -30,7 +30,7 @@ class TestFileManager:
         mock_write_async.assert_called_once_with("test.txt", "Hello, world!")
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_create_file_already_exists(self, mock_exists_async):
         """Test file creation when file already exists."""
         mock_exists_async.return_value = True
@@ -43,9 +43,9 @@ class TestFileManager:
     @pytest.mark.asyncio
     async def test_create_file_with_exception(self):
         """Test file creation with exception."""
-        with patch("tron_intelligence.utils.file_manager.file_exists_async", return_value=False):
+        with patch("tron_ai.utils.file_manager.file_exists_async", return_value=False):
             with patch(
-                "tron_intelligence.utils.file_manager.write_file_async",
+                "tron_ai.utils.file_manager.write_file_async",
                 side_effect=IOError("Permission denied"),
             ):
                 result = await create_file("test.txt", "Hello")
@@ -53,10 +53,10 @@ class TestFileManager:
                 assert "Permission denied" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.get_file_stats_async")
-    @patch("tron_intelligence.utils.file_manager.read_file_async")
-    @patch("tron_intelligence.utils.file_manager.is_file_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.get_file_stats_async")
+    @patch("tron_ai.utils.file_manager.read_file_async")
+    @patch("tron_ai.utils.file_manager.is_file_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_read_file_success(
         self, mock_exists_async, mock_isfile_async, mock_read, mock_stats
     ):
@@ -78,7 +78,7 @@ class TestFileManager:
         mock_read.assert_called_once_with("test.txt")
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_read_file_not_found(self, mock_exists_async):
         """Test reading non-existent file."""
         mock_exists_async.return_value = False
@@ -89,8 +89,8 @@ class TestFileManager:
         assert "not found" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.is_file_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.is_file_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_read_file_not_a_file(self, mock_exists_async, mock_isfile_async):
         """Test reading something that's not a file."""
         mock_exists_async.return_value = True
@@ -102,9 +102,9 @@ class TestFileManager:
         assert "is not a file" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.get_file_stats_async")
-    @patch("tron_intelligence.utils.file_manager.write_file_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.get_file_stats_async")
+    @patch("tron_ai.utils.file_manager.write_file_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_update_file_success(
         self, mock_exists_async, mock_write_async, mock_stats
     ):
@@ -125,7 +125,7 @@ class TestFileManager:
         assert "updated successfully" in result["message"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_update_file_not_found(self, mock_exists_async):
         """Test updating non-existent file."""
         mock_exists_async.return_value = False
@@ -136,9 +136,9 @@ class TestFileManager:
         assert "not found" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.delete_file_async")
-    @patch("tron_intelligence.utils.file_manager.is_file_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.delete_file_async")
+    @patch("tron_ai.utils.file_manager.is_file_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_delete_file_success(
         self, mock_exists_async, mock_isfile_async, mock_delete_async
     ):
@@ -154,7 +154,7 @@ class TestFileManager:
         assert "deleted successfully" in result["message"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_delete_file_not_found(self, mock_exists_async):
         """Test deleting non-existent file."""
         mock_exists_async.return_value = False
@@ -165,9 +165,9 @@ class TestFileManager:
         assert "not found" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.list_directory_async")
-    @patch("tron_intelligence.utils.file_manager.is_directory_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.list_directory_async")
+    @patch("tron_ai.utils.file_manager.is_directory_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_list_directory_success(
         self, mock_exists_async, mock_isdir_async, mock_listdir_async
     ):
@@ -208,7 +208,7 @@ class TestFileManager:
         assert len(dirs) == 1
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_list_directory_not_found(self, mock_exists_async):
         """Test listing non-existent directory."""
         mock_exists_async.return_value = False
@@ -219,8 +219,8 @@ class TestFileManager:
         assert "not found" in result["error"]
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.utils.file_manager.is_directory_async")
-    @patch("tron_intelligence.utils.file_manager.file_exists_async")
+    @patch("tron_ai.utils.file_manager.is_directory_async")
+    @patch("tron_ai.utils.file_manager.file_exists_async")
     async def test_list_directory_not_a_directory(
         self, mock_exists_async, mock_isdir_async
     ):

@@ -5,9 +5,9 @@ Tests for the MCPAgent class.
 import pytest
 from unittest.mock import patch, Mock, AsyncMock, MagicMock
 
-from tron_intelligence.modules.mcp.agent import Agent as MCPAgent, wrap_async_function
-from tron_intelligence.executors.agents.models.agent import Agent as TronAgent
-from tron_intelligence.modules.mcp.client import Client
+from tron_ai.modules.mcp.agent import Agent as MCPAgent, wrap_async_function
+from tron_ai.executors.agents.models.agent import Agent as TronAgent
+from tron_ai.modules.mcp.client import Client
 
 
 class TestMCPAgent:
@@ -60,7 +60,7 @@ class TestMCPAgent:
             mock_coro.assert_called_once_with("test1", arg2="test2")
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.client.Client.create")
+    @patch("tron_ai.modules.mcp.client.Client.create")
     async def test_initialize_success(self, mock_create):
         """Test successful initialization of MCPAgent."""
         # Setup
@@ -99,7 +99,7 @@ class TestMCPAgent:
         # Even if tools are None, this test should still pass as we're testing connection initialization
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.agent.logger")
+    @patch("tron_ai.modules.mcp.agent.logger")
     async def test_cleanup_all(self, mock_logger):
         """Test the cleanup_all class method."""
         # Execute
@@ -109,7 +109,7 @@ class TestMCPAgent:
         mock_logger.info.assert_called()  # Just verify logging happened
 
     @pytest.mark.asyncio
-    @patch("tron_intelligence.modules.mcp.agent.logger")
+    @patch("tron_ai.modules.mcp.agent.logger")
     async def test_generate_tools_no_client(self, mock_logger):
         """Test _generate_tools_from_functions with no client."""
         # Setup
