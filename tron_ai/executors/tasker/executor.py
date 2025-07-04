@@ -1,6 +1,6 @@
 from .tools import DelegateTools
 from .models import DelegateState
-from tron_ai.utils.graph import StateGraph
+from tron_ai.utils.graph.graph import StateGraph
 from tron_ai.executors.base import Executor
 from tron_ai.exceptions import ExecutionError
 

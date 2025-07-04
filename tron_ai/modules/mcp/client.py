@@ -9,7 +9,7 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from mcp.client.sse import sse_client
 
-from tron_ai.utils import json as json
+from tron_ai.utils.io import json as json
 
 
 class Client:

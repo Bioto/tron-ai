@@ -2,7 +2,7 @@ from typing import List
 import asyncio
 from tron_ai.constants import TIMEOUT_TASK_EXECUTION
 from tron_ai.modules.tasks import Task, Manager
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.exceptions import (
     TaskError,
     TimeoutError as TronTimeoutError,

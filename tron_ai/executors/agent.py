@@ -32,7 +32,7 @@ class AgentExecutor(Executor):
         Raises:
             ExecutionError: If the agent execution fails
         """
-        return await self.client.fcall(
+        return self.client.fcall(
             user_query=user_query,
             system_prompt=agent.prompt,
             tool_manager=agent.tool_manager,

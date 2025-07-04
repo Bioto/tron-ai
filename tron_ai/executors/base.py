@@ -4,7 +4,7 @@ import logging
 
 from pydantic import BaseModel
 from tron_ai.models.prompts import Prompt
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.models.executors import ExecutorConfig
 
 

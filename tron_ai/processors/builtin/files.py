@@ -1,6 +1,6 @@
 from adalflow import OpenAIClient
 from markitdown import MarkItDown
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.processors import BaseProcessor
 
 
@@ -13,7 +13,7 @@ class FileProcessor(BaseProcessor):
 
 
 if __name__ == "__main__":
-    from tron_ai.utils.LLMClient import LLMClientConfig
+    from tron_ai.utils.llm.LLMClient import LLMClientConfig
 
     llm_client = LLMClient(
         client=OpenAIClient(), config=LLMClientConfig(model_name="gpt-4o")

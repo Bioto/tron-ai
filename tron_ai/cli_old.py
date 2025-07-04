@@ -15,7 +15,7 @@ from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 
 # Local imports
 from tron_ai.config import setup_logging
-from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
 
 from tron_ai.modules.mcp.manager import MCPAgentManager
 from tron_ai.modules.tasks.models import Task
@@ -71,7 +71,7 @@ async def ask(query):
 
 @cli.command()
 @click.argument("query", default="Hello, Assistant!", required=False)
-async def assistant(query="Hello, Assistant!"):
+async def assistant(query):
     """Start an interactive chat session with Tron AI"""
     from tron_ai.executors.completion import CompletionExecutor
     from tron_ai.models.prompts import Prompt

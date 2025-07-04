@@ -1,7 +1,7 @@
 from typing import List, Dict
 from tron_ai.modules.tasks.models import AgentAssignedTask
 from tron_ai.models.prompts import Prompt
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 
 
 class ReportGenerator:

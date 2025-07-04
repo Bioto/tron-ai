@@ -1,9 +1,10 @@
 from typing import List, Tuple, Optional, Sequence
 from tron_ai.models.agent import Agent
-from tron_ai.executors.agents_old.prompts.agent_router_prompt import build_router_prompt
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.modules.tasks import Task
 from tron_ai.modules.tasks.models import AgentAssignedTask
+from tron_ai.models.prompts import Prompt
+from tron_ai.executors.tasker.models import AgentRouterResults
 
 import logging
 
@@ -39,7 +40,10 @@ class AgentSelector:
         Returns:
             The selected `Agent` object, or `None` if no suitable agent is found.
         """
-        router_prompt = build_router_prompt()
+        router_prompt = Agent(
+            text="You are a helpful assistant that selects the most appropriate agent for a given user query.",
+            output_format=AgentRouterResults
+        )
         agent_info = [(agent.name, agent.description) for agent in agents]
 
         response = self.client.call(
@@ -73,7 +77,10 @@ class AgentSelector:
         
         logging.info(f"Selecting agents for {len(tasks)} tasks")
         
-        router_prompt = build_router_prompt()
+        router_prompt = Prompt(
+            text="You are a helpful assistant that selects the most appropriate agent for a given user query.",
+            output_format=AgentRouterResults
+        )
         agent_info = [(agent.name, agent.full_description) for agent in agents]
         task_info = [(task.identifier, task.description) for task in tasks]
 

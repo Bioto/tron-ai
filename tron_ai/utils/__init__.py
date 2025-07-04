@@ -1,3 +1,3 @@
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 
 __all__ = ["LLMClient"]

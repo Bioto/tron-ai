@@ -26,7 +26,9 @@ class Agent(BaseModel):
     
     name: str
     description: str
+    
     supports_multiple_operations: bool = True
+    
     prompt: Prompt
 
     tool_manager: Optional[ToolManager] = None

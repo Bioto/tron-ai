@@ -205,7 +205,7 @@ agent = SearchAgent()
 Wrapper for LLM operations with tool support.
 
 ```python
-from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
 
 config = LLMClientConfig(
     model_name="gpt-4o",
@@ -241,7 +241,7 @@ response = client.fcall(
 Manages database connections and resource lifecycle.
 
 ```python
-from tron_ai.utils.connection_manager import get_connection_manager
+from tron_ai.utils.concurrency.connection_manager import get_connection_manager
 
 manager = get_connection_manager()
 
@@ -367,7 +367,7 @@ from tron_ai.constants import (
 ### Basic Completion
 
 ```python
-from tron_ai.utils.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
 from tron_ai.executors.completion import CompletionExecutor
 from tron_ai.executors.base import ExecutorConfig
 from tron_ai.prompts.models import Prompt

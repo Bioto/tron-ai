@@ -6,8 +6,8 @@ from dataclasses import dataclass
 from tron_ai.exceptions import ExecutionError
 from tron_ai.modules.tasks import Task
 from tron_ai.models.prompts import Prompt
-from tron_ai.utils.LLMClient import LLMClient
-from tron_ai.utils.prompt_loader import load_local_prompt
+from tron_ai.utils.llm.LLMClient import LLMClient
+from tron_ai.utils.io.prompt_loader import load_local_prompt
 
 # Local imports
 from .models import DelegateState, AgentManagerResults

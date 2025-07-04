@@ -17,10 +17,10 @@ PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "sonar-reasoning-pro")
 # Valid levels: DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 # Get default levels from environment variables with fallbacks
-DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "WARNING")
-DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "WARNING")
+DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "DEBUG")
+DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "DEBUG")
 DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "WARNING")
-DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "WARNING")
+DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "DEBUG")
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -121,32 +121,42 @@ LOGGING_CONFIG = {
             "level": DEFAULT_APP_LEVEL,
             "propagate": False,
         },
-        "tron_ai.utils.LLMClient": {
-            "handlers": ["rich"],
-            "level": "DEBUG",
-            "propagate": False,
-        },
-        "tron_ai.utils.connection_manager": {
+        "tron_ai.utils.llm.LLMClient": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
             "propagate": False,
         },
-        "tron_ai.utils.async_process_monitor": {
+        "tron_ai.utils.concurrency.connection_manager": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
             "propagate": False,
         },
-        "tron_ai.utils.file_manager": {
+        "tron_ai.utils.concurrency.process_monitor": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
             "propagate": False,
         },
-        "tron_ai.utils.async_file_io": {
+        "tron_ai.utils.io.file_manager": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
             "propagate": False,
         },
-        "tron_ai.utils.async_chromadb": {
+        "tron_ai.utils.io.file_manager_async": {
+            "handlers": ["rich"],
+            "level": DEFAULT_UTILITY_LEVEL,
+            "propagate": False,
+        },
+        "tron_ai.utils.io.json": {
+            "handlers": ["rich"],
+            "level": DEFAULT_UTILITY_LEVEL,
+            "propagate": False,
+        },
+        "tron_ai.utils.io.prompt_loader": {
+            "handlers": ["rich"],
+            "level": DEFAULT_UTILITY_LEVEL,
+            "propagate": False,
+        },
+        "tron_ai.utils.graph.graph": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
             "propagate": False,
@@ -168,7 +178,7 @@ def setup_logging():
         ).upper()
         env_var_name = f"TRON_LOG_LEVEL_{env_var_logger_name}"
         env_level = os.getenv(env_var_name)
-
+    
         if env_level:
             level_upper = env_level.upper()
             if level_upper in valid_levels:
@@ -185,3 +195,4 @@ def setup_logging():
 
 # Module-level logger for config.py
 logger = logging.getLogger("tron_ai.config")
+logger.info("[LOGGING TEST] tron_ai.config logger is active.")

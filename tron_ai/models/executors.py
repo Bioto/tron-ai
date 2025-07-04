@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
 from tron_ai.models.prompts import Prompt
-from tron_ai.utils.LLMClient import LLMClient
+from tron_ai.utils.llm.LLMClient import LLMClient
 
 
 class ExecutorConfig(BaseModel):
