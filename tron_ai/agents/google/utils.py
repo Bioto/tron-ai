@@ -23,7 +23,7 @@ def get_gmail_service(scopes=None):
         scopes = DEFAULT_SCOPES
     creds = None
     token_path = os.path.join(os.path.dirname(__file__), "../../../token.json")
-    client_secret_path = os.path.join(os.path.dirname(__file__), "../../client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json")
+    client_secret_path = os.path.join(os.path.dirname(__file__), "../../../.secrets/client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json")
     token_path = os.path.abspath(token_path)
     client_secret_path = os.path.abspath(client_secret_path)
     if os.path.exists(token_path):
@@ -63,7 +63,7 @@ def get_calendar_service(scopes=None):
         scopes = DEFAULT_SCOPES
     creds = None
     token_path = os.path.join(os.path.dirname(__file__), "../../../token.json")
-    client_secret_path = os.path.join(os.path.dirname(__file__), "../../client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json")
+    client_secret_path = os.path.join(os.path.dirname(__file__), "../../../.secrets/client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json")
     token_path = os.path.abspath(token_path)
     client_secret_path = os.path.abspath(client_secret_path)
     if os.path.exists(token_path):

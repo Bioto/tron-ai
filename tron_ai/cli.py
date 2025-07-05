@@ -276,7 +276,7 @@ async def chat(agent: str):
                 console.print("[bold yellow]Goodbye![/bold yellow]")
                 break
             
-            # relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
+            relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
             
 
             # Format conversation history as a bulleted list with headers
@@ -285,14 +285,14 @@ async def chat(agent: str):
                 context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
                 
             
-            # if relevant_memory["results"]:
-            #     memories_str = "## Retrieved Memories About the User\n" + "\n".join(
-            #         f"- {entry['memory']}" for entry in relevant_memory["results"]
-            #     )
+            if relevant_memory["results"]:
+                memories_str = "## Retrieved Memories About the User\n" + "\n".join(
+                    f"- {entry['memory']}" for entry in relevant_memory["results"]
+                )
             
-            #     full_query = f"{context}\n\n{memories_str}\n"
-            # else:
-            full_query = f"{context}\n" 
+                full_query = f"{context}\n\n{memories_str}\n"
+            else:
+                full_query = f"{context}\n" 
                 
             full_query += f"User Input: {user_input}"
             
