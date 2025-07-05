@@ -19,6 +19,7 @@ from mem0.memory.main import logger
 from mem0.configs.base import MemoryConfig, VectorStoreConfig
 import warnings
 from tron_ai.agents.ssh.agent import SSHAgent
+from tron_ai.agents.todoist.agent import TodoistAgent
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -241,7 +242,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 
 @cli.command()
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist"]))
 async def chat(agent: str):
     """Start an interactive chat session with the Tron agent."""
     console = Console()
@@ -257,6 +258,8 @@ async def chat(agent: str):
         agent = GoogleAgent()
     elif agent == "ssh":
         agent = SSHAgent()
+    elif agent == "todoist":
+        agent = TodoistAgent()
     else:
         agent = TronAgent()
         
