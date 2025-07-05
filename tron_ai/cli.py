@@ -24,12 +24,12 @@ warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb"
 
 
 memory = Memory(config=MemoryConfig(
-    history_db_path="tron_history.db",
+    history_db_path=".chroma/tron_history.db",
     vector_store=VectorStoreConfig(
         provider="chroma",
         config={
             "collection_name": "tron_memory",
-            "path": "tron_memory.db",
+            "path": ".chroma/tron_memory.db",
             
         },
     ),
