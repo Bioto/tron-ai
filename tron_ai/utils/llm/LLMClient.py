@@ -51,6 +51,13 @@ BASE_PROMPT = """
                 ------------------------
             {% endfor %}
         </TOOLS>
+        
+        <TOOL_USAGE_RULES>
+            - Only call tools if you need information that is not already available in the conversation
+            - If you already have tool results that answer the user's question, use those results to provide your final response
+            - Do not repeat tool calls that have already been executed successfully
+            - If tool results are provided in the user query, analyze them first before deciding if additional tools are needed
+        </TOOL_USAGE_RULES>
     {% endif %}
 
     {# Output format specification, custom output format #}
@@ -61,6 +68,7 @@ BASE_PROMPT = """
     <OUTPUT_FORMAT_RULES>
         - Always return a List using `[]` of the above JSON objects, even if its just one item.
         - If generating a list of tool calls, make sure to include the `name` and `args` and `kwargs` for each tool call.
+        - If you have sufficient information to provide a final response, include only the `response` field and omit `tool_calls`
     </OUTPUT_FORMAT_RULES>
     {% endif %}
 
@@ -244,13 +252,20 @@ class LLMClient(Component):
         if not tool_results:
             return query
 
-        formatted_query = query + "\n\nTool Calls Results:\n\n"
+        formatted_query = query + "\n\n<PREVIOUS_TOOL_RESULTS>\n"
+        formatted_query += "The following tool calls have already been executed successfully. "
+        formatted_query += "Use these results to provide your final response. Do not repeat these tool calls.\n\n"
         
         for result in tool_results:
             output_str = str(result.output)
             if len(output_str) > 1000:
                 output_str = f"Output truncated: {output_str[:1000]}..."
-            formatted_query += f"- {result.name}: {output_str}\n"
+            formatted_query += f"Tool: {result.name}\n"
+            formatted_query += f"Result: {output_str}\n"
+            formatted_query += "---\n"
+
+        formatted_query += "</PREVIOUS_TOOL_RESULTS>\n\n"
+        formatted_query += "Based on the above tool results, provide your final response."
 
         return formatted_query
 
@@ -448,13 +463,27 @@ class LLMClient(Component):
                 if current_tool_calls == previous_tool_calls and retry_count > 0:
                     self._log("LLM is repeating the same tool calls. Breaking loop.")
                     logger.info(f"[LLM_RETRY] Duplicate tool calls detected: {current_tool_calls}")
+                    logger.info(f"[LLM_RETRY] Dataset keys: {list(dataset.keys())}")
+                    logger.info(f"[LLM_RETRY] Has response field: {'response' in dataset}")
+                    
                     # Check if the LLM provided a final response
                     if "response" in dataset:
+                        self._log("LLM provided final response with duplicates. Returning response.")
+                        logger.info(f"[LLM_RETRY] Returning final response: {dataset.get('response', 'N/A')}")
                         final_response = system_prompt.output_format(**dataset)
                         self._cache_response(cache_key, final_response)
                         return final_response
                     # Otherwise, break to make final direct call
+                    self._log("No response in duplicate detection. Breaking to make final direct call.")
+                    logger.info(f"[LLM_RETRY] Breaking loop - no response field in dataset")
                     break
+                
+                # Check if LLM provided a final response without tool calls (early termination)
+                if "response" in dataset and not current_tool_calls:
+                    self._log("LLM provided final response without tool calls. Returning response.")
+                    final_response = system_prompt.output_format(**dataset)
+                    self._cache_response(cache_key, final_response)
+                    return final_response
                 
                 previous_tool_calls = current_tool_calls
                 new_results = self._execute_tool_calls(current_tool_calls, tool_manager)
