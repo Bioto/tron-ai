@@ -7,7 +7,7 @@ used throughout the application.
 
 # LLM Client Constants
 LLM_MAX_RETRIES = 25
-LLM_DEFAULT_TEMPERATURE = 0.1
+LLM_DEFAULT_TEMPERATURE = 0.0
 LLM_MAX_PARALLEL_TOOLS = 5
 
 # Timeout Constants (in seconds)

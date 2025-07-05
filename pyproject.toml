@@ -30,6 +30,10 @@ dependencies = [
     "sentence-transformers>=4.1.0",
     "asyncclick>=8.1.8",
     "mem0ai>=0.1.113",
+    "mcp-server-fetch>=2025.1.17",
+    "google-api-python-client>=2.175.0",
+    "google-auth-httplib2>=0.2.0",
+    "google-auth-oauthlib>=1.2.2",
 ]
 
 [project.scripts]

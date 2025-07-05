@@ -273,26 +273,31 @@ class LLMClient(Component):
 
         for i, tool_call in enumerate(tool_calls):
             print(i, tool_call)
-            try:
-                # Use from_dict to create Function object
-                tool = Function.from_dict(tool_call)
-                logger.debug(f"Tool: {tool!r}")
-                logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-                
-                # Execute tool using the manager
+            # try:
+            # Use from_dict to create Function object
+            tool = Function.from_dict(tool_call)
+            logger.debug(f"Tool: {tool!r}")
+            logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
+            
+            # Execute tool using the manager
 
-                tool_result = tool_manager.execute_func(tool)
-                logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
+            tool_result = tool_manager.execute_func(tool)
+            
+            print("Tool Result:")
+            print(tool_result)
+            logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
 
-                results.append(tool_result)
-            except Exception as e:
-                logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {str(e)}")
-                raise ToolExecutionError(
-                    "Failed to execute tool",
-                    tool_name=tool_call.get('name', 'unknown'),
-                    error=e
-                )
-
+            results.append(tool_result)
+            # except Exception as e:
+            #     print(e)
+            #     logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {str(e)}")
+            #     raise ToolExecutionError(
+            #         "Failed to execute tool",
+            #         tool_name=tool_call.get('name', 'unknown'),
+            #         error=e
+            #     )
+        print("Results:")
+        print(results)
         return results
 
     def _add_unique_results(self, all_results: list, new_results: list) -> list:
@@ -486,6 +491,9 @@ class LLMClient(Component):
 
         # Otherwise, make a final direct call
         self._log(f"Exhausted retries ({retry_count}), making final direct call")
+        
+        print("All Tool Call Results:")
+        print(all_tool_call_results)
         final_response = self._execute_direct_call(
             generator, system_prompt, user_query, all_tool_call_results
         )
@@ -511,6 +519,9 @@ class LLMClient(Component):
             Processed response
         """
         logger.info("Making direct call without tool manager")
+        
+        print("Tool Results:")
+        print(tool_results)
 
         formatted_query = f"""User query:
 {user_query}"""

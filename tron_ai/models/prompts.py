@@ -40,8 +40,7 @@ class PromptMeta(BaseModel):
 
 class ToolCall(BaseModel):
     name: str = Field(description="The name of the tool called.")
-    args: List[str] = Field(description="The arguments passed to the tool.")
-    kwargs: Dict[str, Any] = Field(description="The keyword arguments passed to the tool.")
+    kwargs: Optional[Dict[str, Any]] = Field(default={}, description="The keyword arguments passed to the tool.")
 
 class BasePromptResponse(PromptMeta, BaseModel):
     tool_calls: Optional[List[ToolCall]] = Field(

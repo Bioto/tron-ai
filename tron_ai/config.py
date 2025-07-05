@@ -19,7 +19,7 @@ PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "sonar-reasoning-pro")
 # Get default levels from environment variables with fallbacks
 DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "DEBUG")
 DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "DEBUG")
-DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "WARNING")
+DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "ERROR")
 DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "DEBUG")
 
 LOGGING_CONFIG = {

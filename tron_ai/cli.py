@@ -2,6 +2,7 @@ import asyncclick as click
 from rich.console import Console
 from rich.prompt import Prompt as RichPrompt
 
+from tron_ai.agents.google.agent import GoogleAgent
 from tron_ai.config import setup_logging
 from tron_ai.executors.agent import AgentExecutor
 from tron_ai.models.config import LLMClientConfig
@@ -9,16 +10,18 @@ from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from tron_ai.models.executors import ExecutorConfig
 from tron_ai.executors.completion import CompletionExecutor
-from tron_ai.agents.tron import TronAgent
+from tron_ai.agents.tron.agent import TronAgent
 from adalflow import OpenAIClient
 import logging
 import json
 from mem0 import Memory
 from mem0.memory.main import logger
 from mem0.configs.base import MemoryConfig, VectorStoreConfig
+import warnings
 
+# Suppress Pydantic deprecation warnings from ChromaDB
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
 
-logger.setLevel(logging.DEBUG)
 
 memory = Memory(config=MemoryConfig(
     history_db_path="tron_history.db",
@@ -189,7 +192,7 @@ async def cli():
 
 @cli.command()
 @click.argument("user_query")
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google"]))
 async def ask(user_query: str, agent: str) -> str:
     """Ask Tron AI a question"""
 
@@ -204,6 +207,16 @@ async def ask(user_query: str, agent: str) -> str:
     if agent == "tron":
         agent = TronAgent()
         
+        executor = AgentExecutor(
+            config=ExecutorConfig(
+                client=client,
+                logging=True,
+            ),
+        )
+        response = await executor.execute(user_query=user_query, agent=agent)
+        
+    elif agent == "google":
+        agent = GoogleAgent()
         executor = AgentExecutor(
             config=ExecutorConfig(
                 client=client,
@@ -227,7 +240,8 @@ async def ask(user_query: str, agent: str) -> str:
 
 
 @cli.command()
-async def chat():
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google"]))
+async def chat(agent: str):
     """Start an interactive chat session with the Tron agent."""
     console = Console()
     client = LLMClient(
@@ -237,7 +251,12 @@ async def chat():
             json_output=True,
         ),
     )
-    agent = TronAgent()
+    
+    if agent == "google":
+        agent = GoogleAgent()
+    else:
+        agent = TronAgent()
+        
     executor = AgentExecutor(
         config=ExecutorConfig(
             client=client,
@@ -254,7 +273,7 @@ async def chat():
                 console.print("[bold yellow]Goodbye![/bold yellow]")
                 break
             
-            relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
+            # relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
             
 
             # Format conversation history as a bulleted list with headers
@@ -263,16 +282,19 @@ async def chat():
                 context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
                 
             
-            if relevant_memory["results"]:
-                memories_str = "## Retrieved Memories About the User\n" + "\n".join(
-                    f"- {entry['memory']}" for entry in relevant_memory["results"]
-                )
+            # if relevant_memory["results"]:
+            #     memories_str = "## Retrieved Memories About the User\n" + "\n".join(
+            #         f"- {entry['memory']}" for entry in relevant_memory["results"]
+            #     )
             
-                full_query = f"{context}\n\n{memories_str}\n"
-            else:
-                full_query = f"{context}\n" 
+            #     full_query = f"{context}\n\n{memories_str}\n"
+            # else:
+            full_query = f"{context}\n" 
                 
             full_query += f"User Input: {user_input}"
+            
+            print("Full Query:")
+            print(full_query)
             
             conversation_history.append(("User", user_input))
             response = await executor.execute(user_query=full_query.rstrip(), agent=agent)
