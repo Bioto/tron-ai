@@ -2,12 +2,12 @@ from mem0.memory.main import Memory
 from mem0.configs.base import MemoryConfig, VectorStoreConfig
 
 memory: Memory = Memory(config=MemoryConfig(
-    history_db_path="tron_history.db",
+    history_db_path=".chroma/tron_history.db",
     vector_store=VectorStoreConfig(
         provider="chroma",
         config={
             "collection_name": "tron_memory",
-            "path": "tron_memory.db",
+            "path": ".chroma/tron_memory.db",
             
         },
     ),

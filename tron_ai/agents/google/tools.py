@@ -404,15 +404,6 @@ class GoogleTools:
         """
         Restore email from trash back to inbox.
         
-        TRIGGER WORDS: untrash, restore, recover, undelete, bring back, retrieve from trash
-        USE THIS WHEN: User wants to restore/recover a previously deleted/trashed email
-        EXAMPLES:
-        - "Restore the deleted message"
-        - "Untrash message ID xyz789"
-        - "Recover the email I just deleted"
-        - "Bring back the trashed email from yesterday"
-        - "Retrieve that message from trash"
-        
         kwargs:
             message_id (str): The Gmail message ID.
             user_id (str): Gmail user ID (default: 'me').
@@ -421,48 +412,3 @@ class GoogleTools:
         """
         service = get_gmail_service()
         return service.users().messages().untrash(userId=user_id, id=message_id).execute()
-
-    @staticmethod
-    def batch_delete_messages(message_ids: list, user_id: str = "me"):
-        """
-        Permanently delete multiple emails at once. This action cannot be undone.
-        NOTE: User approval is required before executing this operation.
-        
-        kwargs:
-            message_ids (list): List of Gmail message IDs to delete.
-            user_id (str): Gmail user ID (default: 'me').
-        Returns:
-            None
-        """
-        service = get_gmail_service()
-        service.users().messages().batchDelete(userId=user_id, body={"ids": message_ids}).execute()
-
-    @staticmethod
-    def batch_modify_messages(
-        message_ids: list,
-        add_label_ids: list = None,
-        remove_label_ids: list = None,
-        user_id: str = "me",
-    ):
-        """
-        Apply or remove labels from multiple emails at once (bulk organize).
-        NOTE: User approval is required before executing this operation.
-        
-        kwargs:
-            message_ids (list): List of Gmail message IDs to modify.
-            add_label_ids (list): List of label IDs to add.
-            remove_label_ids (list): List of label IDs to remove.
-            user_id (str): Gmail user ID (default: 'me').
-        Returns:
-            None
-        """
-        service = get_gmail_service()
-        body = {"ids": message_ids}
-        if add_label_ids:
-            body["addLabelIds"] = add_label_ids
-        if remove_label_ids:
-            body["removeLabelIds"] = remove_label_ids
-        service.users().messages().batchModify(userId=user_id, body=body).execute()
-    
-    
-    

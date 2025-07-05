@@ -259,3 +259,5 @@ results/
 
 output/
 .models/*
+
+.secrets
