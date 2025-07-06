@@ -2,6 +2,9 @@ import asyncclick as click
 from rich.console import Console
 from rich.prompt import Prompt as RichPrompt
 
+from tron_ai.database.manager import DatabaseManager
+from tron_ai.database.config import DatabaseConfig
+
 from tron_ai.agents.google.agent import GoogleAgent
 from tron_ai.config import setup_logging
 from tron_ai.executors.agent import AgentExecutor
@@ -246,7 +249,14 @@ async def ask(user_query: str, agent: str) -> str:
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist"]))
 async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
+    import uuid
+    import time
     console = Console()
+    db_config = DatabaseConfig()
+    db_manager = DatabaseManager(db_config)
+    await db_manager.initialize()
+    session_id = str(uuid.uuid4())
+
     client = LLMClient(
         client=OpenAIClient(),
         config=LLMClientConfig(
@@ -256,13 +266,13 @@ async def chat(user_query: str, agent: str):
     )
     
     if agent == "google":
-        agent = GoogleAgent()
+        agent_instance = GoogleAgent()
     elif agent == "ssh":
-        agent = SSHAgent()
+        agent_instance = SSHAgent()
     elif agent == "todoist":
-        agent = TodoistAgent()
+        agent_instance = TodoistAgent()
     else:
-        agent = TronAgent()
+        agent_instance = TronAgent()
         
     executor = AgentExecutor(
         config=ExecutorConfig(
@@ -270,8 +280,19 @@ async def chat(user_query: str, agent: str):
             logging=True,
         ),
     )
+    
+    # Create or get conversation
+    conversation = await db_manager.get_conversation(session_id)
+    if not conversation:
+        conversation = await db_manager.create_conversation(
+            session_id=session_id,
+            user_id=None,
+            agent_name=agent_instance.name,
+            title=f"Chat with {agent_instance.name}",
+            meta={"agent_type": agent}
+        )
+    
     triggered = False
-    conversation_history = []
     console.print("[bold cyan]Welcome to Tron AI chat! Type 'exit', 'quit', or 'bye' to leave.[/bold cyan]")
     while True:
         try:
@@ -285,69 +306,181 @@ async def chat(user_query: str, agent: str):
                 console.print("[bold yellow]Goodbye![/bold yellow]")
                 break
             
-            # relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
-            
-
-            # Format conversation history as a bulleted list with headers
+            # Get conversation history for context
+            conversation_history = await db_manager.get_conversation_history(session_id, max_messages=20)
             context = ""
             if conversation_history:
                 context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
-                
-            
-            # if relevant_memory["results"]:
-            #     memories_str = "## Retrieved Memories About the User\n" + "\n".join(
-            #         f"- {entry['memory']}" for entry in relevant_memory["results"]
-            #     )
-            
-            #     full_query = f"{context}\n\n{memories_str}\n"
-            # else:
             full_query = f"{context}\n" 
-                
             full_query += f"User Input: {user_input}"
-            
             print("Full Query:")
             print(full_query)
-            
-            conversation_history.append(("User", user_input))
-            response = await executor.execute(user_query=full_query.rstrip(), agent=agent)
-          
-            # memory.add([{
-            #     "role": message[0].lower(),
-            #     "content": message[1]             
-            # } for message in conversation_history], user_id="tron")
-            
-            conversation_history.append(("Assistant", response.response))
-            
+            # Add user message to database
+            await db_manager.add_message(
+                session_id=session_id,
+                role="user",
+                content=user_input,
+                meta=None
+            )
+            # Execute agent with timing
+            start_time = time.time()
+            response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
+            execution_time_ms = int((time.time() - start_time) * 1000)
+            # Add agent session to database
+            await db_manager.add_agent_session(
+                session_id=session_id,
+                agent_name=agent_instance.name,
+                user_query=user_input,
+                agent_response=response.response,
+                tool_calls=response.tool_calls if hasattr(response, 'tool_calls') else None,
+                execution_time_ms=execution_time_ms,
+                success=True,
+                meta=None
+            )
+            # Add assistant message to database
+            await db_manager.add_message(
+                session_id=session_id,
+                role="assistant",
+                content=response.response,
+                agent_name=agent_instance.name,
+                tool_calls=response.tool_calls if hasattr(response, 'tool_calls') else None,
+                meta=None
+            )
             console.print(f"[bold blue]Assistant:[/bold blue] {response.response}")
-            
         except (KeyboardInterrupt, EOFError):
             console.print("\n[bold yellow]Goodbye![/bold yellow]")
             break
+        except Exception as e:
+            console.print(f"[bold red]Error:[/bold red] {str(e)}")
+            # Log error to database
+            await db_manager.add_agent_session(
+                session_id=session_id,
+                agent_name=agent_instance.name,
+                user_query=user_input if 'user_input' in locals() else "Unknown",
+                success=False,
+                error_message=str(e),
+                meta=None
+            )
+    await db_manager.close()
 
+
+@click.group()
+def db():
+    """Database management commands."""
+    pass
+
+@db.command()
+async def init():
+    """Initialize the database and create tables."""
+    console = Console()
+    try:
+        db_config = DatabaseConfig()
+        db_manager = DatabaseManager(db_config)
+        await db_manager.initialize()
+        console.print("[bold green]Database initialized successfully![/bold green]")
+        stats = await db_manager.get_conversation_stats()
+        console.print(f"[cyan]Database contains:[/cyan]")
+        console.print(f"  - {stats['total_conversations']} conversations")
+        console.print(f"  - {stats['total_messages']} messages")
+        console.print(f"  - {stats['total_agent_sessions']} agent sessions")
+    except Exception as e:
+        console.print(f"[bold red]Error initializing database:[/bold red] {e}")
+    finally:
+        await db_manager.close()
+
+@db.command()
+@click.option("--days", default=90, help="Delete conversations older than N days")
+async def cleanup(days: int):
+    """Clean up old conversations."""
+    console = Console()
+    try:
+        db_config = DatabaseConfig()
+        db_manager = DatabaseManager(db_config)
+        await db_manager.initialize()
+        deleted_count = await db_manager.cleanup_old_conversations(days)
+        console.print(f"[bold green]Cleaned up {deleted_count} old conversations![/bold green]")
+    except Exception as e:
+        console.print(f"[bold red]Error cleaning up database:[/bold red] {e}")
+    finally:
+        await db_manager.close()
+
+@db.command()
+@click.option("--user-id", help="Filter by user ID")
+@click.option("--agent", help="Filter by agent name")
+@click.option("--days", default=30, help="Statistics for last N days")
+async def stats(user_id: str = None, agent: str = None, days: int = 30):
+    """Show database statistics."""
+    console = Console()
+    try:
+        db_config = DatabaseConfig()
+        db_manager = DatabaseManager(db_config)
+        await db_manager.initialize()
+        stats = await db_manager.get_conversation_stats(
+            user_id=user_id,
+            agent_name=agent,
+            days=days
+        )
+        console.print(f"[bold cyan]Database Statistics (Last {days} days):[/bold cyan]")
+        console.print(f"  Total Conversations: {stats['total_conversations']}")
+        console.print(f"  Total Messages: {stats['total_messages']}")
+        console.print(f"  Total Agent Sessions: {stats['total_agent_sessions']}")
+        console.print(f"  Active Conversations: {stats['active_conversations']}")
+        console.print(f"  Avg Messages/Conversation: {stats['avg_messages_per_conversation']:.1f}")
+        console.print(f"  Successful Sessions: {stats['successful_sessions']}")
+        console.print(f"  Failed Sessions: {stats['failed_sessions']}")
+        console.print(f"  Avg Execution Time: {stats['avg_execution_time_ms']:.0f}ms")
+    except Exception as e:
+        console.print(f"[bold red]Error getting statistics:[/bold red] {e}")
+    finally:
+        await db_manager.close()
+
+@db.command()
+@click.argument("session_id")
+async def show(session_id: str):
+    """Show conversation details."""
+    console = Console()
+    try:
+        db_config = DatabaseConfig()
+        db_manager = DatabaseManager(db_config)
+        await db_manager.initialize()
+        conversation = await db_manager.get_conversation(session_id)
+        if not conversation:
+            console.print(f"[bold red]Conversation {session_id} not found![/bold red]")
+            return
+        console.print(f"[bold cyan]Conversation: {session_id}[/bold cyan]")
+        console.print(f"  Agent: {conversation.agent_name}")
+        console.print(f"  User ID: {conversation.user_id or 'Anonymous'}")
+        console.print(f"  Title: {conversation.title or 'Untitled'}")
+        console.print(f"  Created: {conversation.created_at}")
+        console.print(f"  Updated: {conversation.updated_at}")
+        console.print(f"  Active: {conversation.is_active}")
+        console.print(f"  Messages: {conversation.message_count}")
+        messages = await db_manager.get_messages(session_id, limit=10)
+        if messages:
+            console.print(f"\n[bold yellow]Recent Messages:[/bold yellow]")
+            for msg in messages[-5:]:
+                role_icon = "👤" if msg.role == "user" else "🤖"
+                console.print(f"  {role_icon} [{msg.role}] {msg.content[:100]}{'...' if len(msg.content) > 100 else ''}")
+    except Exception as e:
+        console.print(f"[bold red]Error showing conversation:[/bold red] {e}")
+    finally:
+        await db_manager.close()
 
 def main():
     """Entry point that suppresses SystemExit traceback"""
     import sys
-    
-    # Suppress the "Task exception was never retrieved" error by setting the asyncio logger
-    # to a higher level before running the CLI
     import logging
     logging.getLogger('asyncio').setLevel(logging.ERROR)
-    
-    # Also suppress stderr temporarily during the exit to catch any remaining output
     original_stderr = sys.stderr
-    
     try:
-        # Run the CLI
+        cli.add_command(db)
         cli(_anyio_backend="asyncio")
     except SystemExit as e:
         if e.code == 0:
-            # For successful exits, suppress any remaining error output
             import io
             sys.stderr = io.StringIO()
         sys.exit(e.code)
     finally:
-        # Restore stderr
         sys.stderr = original_stderr
 
 if __name__ == "__main__":

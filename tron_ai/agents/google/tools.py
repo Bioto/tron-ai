@@ -26,7 +26,8 @@ class GoogleTools:
         user_id: str = "me",
     ):
         """
-        List Gmail messages with IDs and snippets. Useful for browsing inbox or specific labels.
+        List Gmail messages with IDs and snippets ordered from most recent to oldest. 
+        Useful for browsing inbox or specific labels.
         
         kkwargs:
             max_results (int): Number of messages to list (max 500).
@@ -36,7 +37,7 @@ class GoogleTools:
             include_spam_trash (bool): Include messages from SPAM and TRASH.
             user_id (str): Gmail user ID (default: 'me').
         Returns:
-            list: List of message dicts with id and snippet.
+            list: List of message dicts with id and snippet, ordered from most recent to oldest.
         """
         logger.info(f"list_messages called with max_results={max_results}, q='{q}', label_ids={label_ids}")
         
@@ -131,6 +132,7 @@ class GoogleTools:
     ):
         """
         Search Gmail using powerful query syntax. Find emails by sender, date, subject, attachments, and more.
+        Results are ordered from most recent to oldest.
         
         kwargs:
             query (str): Gmail search query. Examples:
@@ -155,7 +157,7 @@ class GoogleTools:
             include_spam_trash (bool): Include messages from SPAM and TRASH.
             user_id (str): Gmail user ID (default: 'me').
         Returns:
-            list: List of message dicts with id and snippet.
+            list: List of message dicts with id and snippet, ordered from most recent to oldest.
         """
         logger.info(f"search_messages called with query='{query}', max_results={max_results}")
         
@@ -177,24 +179,50 @@ class GoogleTools:
     @staticmethod
     def list_events(max_results: int = 10):
         """
-        List upcoming Google Calendar events in chronological order.
+        List Google Calendar events ordered from most recent to oldest.
         
         kwargs:
             max_results (int): Number of events to list.
         Returns:
             list: List of event dicts with id, summary, start, end, and description.
         """
+        import datetime
         service = get_calendar_service()
-        events_result = service.events().list(
+        
+        # Get current time in ISO format
+        now = datetime.datetime.utcnow().isoformat() + 'Z'
+        
+        # First, get upcoming events
+        upcoming_events_result = service.events().list(
             calendarId='primary',
             maxResults=max_results,
             singleEvents=True,
             orderBy='startTime',
-            timeMin=None  # Could set to now, but None lists all
+            timeMin=now
         ).execute()
-        events = events_result.get('items', [])
+        upcoming_events = upcoming_events_result.get('items', [])
+        
+        # Then, get past events (most recent first)
+        past_events_result = service.events().list(
+            calendarId='primary',
+            maxResults=max_results,
+            singleEvents=True,
+            orderBy='startTime',
+            timeMax=now
+        ).execute()
+        past_events = past_events_result.get('items', [])
+        
+        # Reverse past events to get most recent first
+        past_events.reverse()
+        
+        # Combine: upcoming events first (soonest first), then past events (most recent first)
+        all_events = upcoming_events + past_events
+        
+        # Limit to max_results
+        all_events = all_events[:max_results]
+        
         output = []
-        for event in events:
+        for event in all_events:
             output.append({
                 'id': event.get('id'),
                 'summary': event.get('summary', ''),
@@ -212,6 +240,7 @@ class GoogleTools:
                      shared_extended_property: str = None, time_zone: str = None):
         """
         Search calendar events by text (searches in summary, description, location, attendee names).
+        Results are ordered based on order_by parameter (default: by start time).
         
         kwargs:
             query (str): Search string. Using the Google Calendar API's q parameter.
@@ -229,22 +258,74 @@ class GoogleTools:
         Returns:
             list: List of event dicts with id, summary, start, end, and description.
         """
+        import datetime
         service = get_calendar_service()
-        events_result = service.events().list(
-            calendarId=calendar_id,
-            q=query,
-            maxResults=max_results,
-            singleEvents=single_events,
-            orderBy=order_by,
-            timeMin=time_min,
-            timeMax=time_max,
-            showDeleted=show_deleted,
-            updatedMin=updated_min,
-            privateExtendedProperty=private_extended_property,
-            sharedExtendedProperty=shared_extended_property,
-            timeZone=time_zone
-        ).execute()
-        events = events_result.get('items', [])
+        
+        # If no time range specified, search both past and future events
+        if time_min is None and time_max is None:
+            now = datetime.datetime.utcnow().isoformat() + 'Z'
+            
+            # Search upcoming events
+            upcoming_params = {
+                'calendarId': calendar_id,
+                'q': query,
+                'maxResults': max_results,
+                'singleEvents': single_events,
+                'orderBy': order_by,
+                'timeMin': now,
+                'showDeleted': show_deleted,
+                'updatedMin': updated_min,
+                'privateExtendedProperty': private_extended_property,
+                'sharedExtendedProperty': shared_extended_property,
+                'timeZone': time_zone
+            }
+            upcoming_result = service.events().list(**{k: v for k, v in upcoming_params.items() if v is not None}).execute()
+            upcoming_events = upcoming_result.get('items', [])
+            
+            # Search past events
+            past_params = {
+                'calendarId': calendar_id,
+                'q': query,
+                'maxResults': max_results,
+                'singleEvents': single_events,
+                'orderBy': order_by,
+                'timeMax': now,
+                'showDeleted': show_deleted,
+                'updatedMin': updated_min,
+                'privateExtendedProperty': private_extended_property,
+                'sharedExtendedProperty': shared_extended_property,
+                'timeZone': time_zone
+            }
+            past_result = service.events().list(**{k: v for k, v in past_params.items() if v is not None}).execute()
+            past_events = past_result.get('items', [])
+            
+            # Reverse past events to get most recent first
+            past_events.reverse()
+            
+            # Combine: upcoming events first, then past events
+            events = upcoming_events + past_events
+            
+            # Limit to max_results
+            events = events[:max_results]
+        else:
+            # Use provided time range
+            params = {
+                'calendarId': calendar_id,
+                'q': query,
+                'maxResults': max_results,
+                'singleEvents': single_events,
+                'orderBy': order_by,
+                'timeMin': time_min,
+                'timeMax': time_max,
+                'showDeleted': show_deleted,
+                'updatedMin': updated_min,
+                'privateExtendedProperty': private_extended_property,
+                'sharedExtendedProperty': shared_extended_property,
+                'timeZone': time_zone
+            }
+            events_result = service.events().list(**{k: v for k, v in params.items() if v is not None}).execute()
+            events = events_result.get('items', [])
+        
         output = []
         for event in events:
             output.append({
