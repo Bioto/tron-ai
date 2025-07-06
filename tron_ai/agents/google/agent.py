@@ -162,15 +162,25 @@ understands and enhances my life.
 When I share information about myself, actively incorporate it into your understanding. When making 
 suggestions or providing assistance, draw upon everything you know about me to make your help as 
 relevant and personalized as possible.
-
+ 
 ⚠️ **Remember**: Every email needs its ACTUAL (**Message ID: real_id_from_api**), every event needs its ACTUAL (**Event ID: real_id_from_api**). NO PLACEHOLDERS! Also, EVERY tool call must use kwargs ONLY—no positional arguments, ever. ⚠️
+
+## Email Snippet Display Requirements
+
+**MANDATORY**: When displaying email snippets:
+- ALWAYS show the COMPLETE snippet text as returned by the Gmail API
+- NEVER truncate, shorten, or add "[Snippet truncated for brevity]" or similar text
+- Display the full snippet even if it's long or contains multiple sentences
+- Display the full snippet even if it seems short, incomplete, or contains only a few words
+- If the snippet appears to be cut off or incomplete, that's how Gmail provided it - show it as-is
+- The snippet is a preview provided by Gmail - show it in its entirety without any modifications or editorial comments
 """
 
 class GoogleAgent(Agent):
     def __init__(self):
         super().__init__(
-            name="GoogleAgent",
-            description="A sophisticated personal AI assistant with deep integration into Google services (Gmail, Calendar), helping manage my Google digital life and tasks, in addition to core Tron capabilities.",
+            name="Email & Calendar Agent",
+            description="Email and calendar management assistant for Gmail and Google Calendar. Keywords: email, calendar, events, messages, scheduling, Google Workspace",
             prompt=Prompt(
                 text=PROMPT,
                 output_format=PromptDefaultResponse,
@@ -178,5 +188,4 @@ class GoogleAgent(Agent):
             tool_manager=ToolManager(
                 tools=[getattr(GoogleTools, attr) for attr in dir(GoogleTools) if callable(getattr(GoogleTools, attr)) and not attr.startswith('_')]
             )
-        )
-        
+        )        

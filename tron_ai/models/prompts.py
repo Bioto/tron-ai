@@ -50,13 +50,20 @@ class BasePromptResponse(PromptMeta, BaseModel):
 class PromptDefaultResponse(PromptMeta, BaseModel):
     """Default response format for prompts.
 
+    This class provides a standardized response structure for AI agent interactions,
+    including both text responses and tool execution calls. It inherits from PromptMeta
+    to include diagnostic information about the prompt execution.
+
     Attributes:
-        response (str): The text response to the prompt.
+        response (Optional[str]): The text response to the prompt. Defaults to empty string.
+        tool_calls (Optional[List[ToolCall]]): List of tools called during agent execution 
+            with their keyword arguments. Defaults to empty list.
+        diagnostics (PromptDiagnostics): Inherited diagnostic information about the prompt execution.
     """
 
     response: Optional[str] = Field(default="", description="Response to the prompt.")
     tool_calls: Optional[List[ToolCall]] = Field(
-        default_factory=list, description="List of tools called during agent execution"
+        default_factory=list, description="List of tools called during agent execution with their keyword arguments"
     )
 
 
@@ -115,7 +122,7 @@ class Prompt(BaseModel):
             str: The rendered prompt.
         """
         self._validate_kwargs(kwargs)
-
+    
         return (
             Template(self.text.strip()).render(**kwargs | {"_is_json": True}).rstrip()
         )

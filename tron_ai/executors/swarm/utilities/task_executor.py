@@ -85,16 +85,24 @@ class TaskExecutor:
                             self.logger.info(
                                 f"Calling agent for task '{task.identifier}' with {len(task.operations)} operations"
                             )
+                            self.logger.debug(f"Calling agent '{task.agent.name}' for task '{task.identifier}'")
 
                             result = self.client.fcall(
-                                user_query=operations_query
-                                + "\n\n"
-                                + "Always return your response in markdown format.",
+                                user_query=operations_query + "\n\n"+ "Always return your response in markdown format.\n\nIMPORTANT: When displaying email snippets or any content retrieved from APIs, ALWAYS show the COMPLETE text. NEVER truncate, shorten, or add phrases like '[truncated for brevity]' or similar. Display all content in full.",
                                 system_prompt=task.agent.prompt,
                                 tool_manager=task.agent.tool_manager,
                             )
 
                             task.result = result
+                            
+                            # Log the actual result content
+                            if hasattr(result, 'response'):
+                                self.logger.info(f"Task '{task.identifier}' result length: {len(result.response)} characters")
+                                self.logger.debug(f"Task '{task.identifier}' full result: {result.response[:500]}..." if len(result.response) > 500 else f"Task '{task.identifier}' full result: {result.response}")
+                            else:
+                                self.logger.info(f"Task '{task.identifier}' result type: {type(result)}")
+                                self.logger.debug(f"Task '{task.identifier}' result: {str(result)[:500]}...")
+                            
                             self.logger.info(
                                 f"Task '{task.identifier}' completed successfully"
                             )

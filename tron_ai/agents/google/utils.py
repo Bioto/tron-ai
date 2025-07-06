@@ -1,3 +1,15 @@
+
+DEFAULT_SCOPES = [
+    "https://www.googleapis.com/auth/calendar.readonly",
+    "https://www.googleapis.com/auth/calendar",
+    "https://www.googleapis.com/auth/calendar.events",
+    "https://www.googleapis.com/auth/gmail.readonly",
+    "https://www.googleapis.com/auth/gmail.modify",
+    "https://www.googleapis.com/auth/gmail.compose",
+    "https://www.googleapis.com/auth/gmail.send"
+]
+    
+    
 def get_gmail_service(scopes=None):
     """
     Returns an authenticated Gmail API service using OAuth2 credentials.
@@ -13,12 +25,7 @@ def get_gmail_service(scopes=None):
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
 
-    DEFAULT_SCOPES = [
-        "https://www.googleapis.com/auth/gmail.readonly",
-        "https://www.googleapis.com/auth/gmail.modify",
-        "https://www.googleapis.com/auth/gmail.compose",
-        "https://www.googleapis.com/auth/gmail.send"
-    ]
+ 
     if scopes is None:
         scopes = DEFAULT_SCOPES
     creds = None
@@ -54,11 +61,7 @@ def get_calendar_service(scopes=None):
     from google_auth_oauthlib.flow import InstalledAppFlow
     from googleapiclient.discovery import build
 
-    DEFAULT_SCOPES = [
-        "https://www.googleapis.com/auth/calendar.readonly",
-        "https://www.googleapis.com/auth/calendar",
-        "https://www.googleapis.com/auth/calendar.events"
-    ]
+
     if scopes is None:
         scopes = DEFAULT_SCOPES
     creds = None

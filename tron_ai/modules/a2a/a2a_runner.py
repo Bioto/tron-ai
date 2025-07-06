@@ -5,7 +5,7 @@ from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
 from a2a.server.apps import A2AStarletteApplication
 
-from tron_ai.executors.tasker.models import AgentManagerResults
+from tron_ai.executors.swarm.models import SwarmResults
 from tron_ai.models.prompts import Prompt
 from tron_ai.executors.agent import AgentExecutor
 from tron_ai.models.agent import Agent
@@ -19,7 +19,7 @@ a2a_agent = Agent(
     description="Analyzes user queries and breaks them down into logically grouped tasks, assigning operations to appropriate agents based on their capabilities",
     prompt=Prompt(
         text="You are a helpful assistant that analyzes user queries and breaks them down into logically grouped tasks, assigning operations to appropriate agents based on their capabilities.",
-        output_format=AgentManagerResults
+        output_format=SwarmResults
     ),
 )
 

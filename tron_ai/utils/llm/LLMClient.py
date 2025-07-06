@@ -57,6 +57,9 @@ BASE_PROMPT = """
             - If you already have tool results that answer the user's question, use those results to provide your final response
             - Do not repeat tool calls that have already been executed successfully
             - If tool results are provided in the user query, analyze them first before deciding if additional tools are needed
+            - When calling tools, use kwargs for named parameters (e.g., {"name": "tool_name", "kwargs": {"param1": "value1"}})
+            - If a tool call fails with a parameter error, review the error message and retry with corrected parameters
+            - Pay attention to the exact parameter names and types expected by each tool
         </TOOL_USAGE_RULES>
     {% endif %}
 
@@ -69,6 +72,7 @@ BASE_PROMPT = """
         - Always return a List using `[]` of the above JSON objects, even if its just one item.
         - If generating a list of tool calls, make sure to include the `name` and `args` and `kwargs` for each tool call.
         - If you have sufficient information to provide a final response, include only the `response` field and omit `tool_calls`
+        - When retrying failed tool calls, ensure you use the correct parameter format with kwargs
     </OUTPUT_FORMAT_RULES>
     {% endif %}
 
@@ -235,10 +239,6 @@ class LLMClient(Component):
 
         return {"tools": tool_manager.yaml_definitions, "_output_format_str": format_str}
 
-    # TODO: The current implementation truncates long tool outputs, which can cause the LLM to lose context.
-    # A better approach would be to use a summarization model or another technique to reduce the size of the
-    # output while preserving the essential information. This would prevent the model from getting confused
-    # by large JSON or other structured data outputs.
     def _format_query_with_results(self, query: str, tool_results: list) -> str:
         """Format query with tool call results.
 
@@ -252,21 +252,57 @@ class LLMClient(Component):
         if not tool_results:
             return query
 
-        formatted_query = query + "\n\n<PREVIOUS_TOOL_RESULTS>\n"
-        formatted_query += "The following tool calls have already been executed successfully. "
-        formatted_query += "Use these results to provide your final response. Do not repeat these tool calls.\n\n"
+        print("tool_results1", tool_results)
+        logger.debug(f"Formatting query with {len(tool_results)} tool results")
         
-        for result in tool_results:
-            output_str = str(result.output)
-            if len(output_str) > 1000:
-                output_str = f"Output truncated: {output_str[:1000]}..."
-            formatted_query += f"Tool: {result.name}\n"
-            formatted_query += f"Result: {output_str}\n"
-            formatted_query += "---\n"
+        formatted_query = query + "\n\n<PREVIOUS_TOOL_RESULTS>\n"
+        
+        # Separate successful and failed results
+        successful_results = [r for r in tool_results if not hasattr(r, 'error') or r.error is None]
+        failed_results = [r for r in tool_results if hasattr(r, 'error') and r.error is not None]
+        
+        if successful_results:
+            formatted_query += "The following tool calls have already been executed successfully. "
+            formatted_query += "Use these results to provide your final response. Do not repeat these tool calls.\n\n"
+            
+            # Note: Tool results are truncated at 10000 chars to prevent context window overflow
+            # while still allowing reasonably sized responses (e.g., lists of 20+ items)
+            for i, result in enumerate(successful_results):
+                output_str = str(result.output)
+                print("output_str", output_str)
+                print(f"Tool result {i+1}: {result.name}, output length: {len(output_str)}")
+                if len(output_str) > 10000:
+                    output_str = f"Output truncated: {output_str[:10000]}..."
+                    logger.warning(f"Tool result {i+1} was truncated from {len(str(result.output))} to 10000 chars")
+                formatted_query += f"Tool: {result.name}\n"
+                formatted_query += f"Result: {output_str}\n"
+                formatted_query += "---\n"
+        
+        if failed_results:
+            formatted_query += "\n<TOOL_ERRORS>\n"
+            formatted_query += "The following tool calls failed with errors. Please review the errors and retry with corrected parameters:\n\n"
+            
+            for i, result in enumerate(failed_results):
+                formatted_query += f"Tool: {result.name}\n"
+                formatted_query += f"Error: {result.error}\n"
+                if hasattr(result, 'input') and result.input:
+                    formatted_query += f"Original call: {result.input}\n"
+                formatted_query += "---\n"
+            
+            formatted_query += "\nIMPORTANT: When retrying these failed tool calls, make sure to:\n"
+            formatted_query += "1. Use kwargs for named parameters (e.g., {'query': 'value'} instead of positional arguments)\n"
+            formatted_query += "2. Check the tool definition for required parameters\n"
+            formatted_query += "3. Ensure parameter names match exactly what the tool expects\n"
+            formatted_query += "</TOOL_ERRORS>\n"
 
         formatted_query += "</PREVIOUS_TOOL_RESULTS>\n\n"
-        formatted_query += "Based on the above tool results, provide your final response."
+        
+        if successful_results and not failed_results:
+            formatted_query += "Based on the above tool results, provide your final response."
+        elif failed_results:
+            formatted_query += "Please retry the failed tool calls with corrected parameters, then provide your final response."
 
+        logger.debug(f"Final formatted query length: {len(formatted_query)} characters")
         return formatted_query
 
     def _execute_tool_calls(self, tool_calls: list, tool_manager: ToolManager) -> list:
@@ -287,32 +323,68 @@ class LLMClient(Component):
         results = []
 
         for i, tool_call in enumerate(tool_calls):
-            print(i, tool_call)
-            # try:
-            # Use from_dict to create Function object
-            tool = Function.from_dict(tool_call)
-            logger.debug(f"Tool: {tool!r}")
-            logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-            
-            # Execute tool using the manager
+            try:
+                # Use from_dict to create Function object
+                print("NICK===")
+                print("tool_call", tool_call)
+                
+                # Normalize tool_call to ensure kwargs are properly separated
+                normalized_tool_call = tool_call.copy()
+                
+                # If args contains a dict, move it to kwargs
+                if 'args' in normalized_tool_call and isinstance(normalized_tool_call['args'], dict):
+                    normalized_tool_call['kwargs'] = normalized_tool_call['args']
+                    normalized_tool_call['args'] = ()
+                
+                tool = Function.from_dict(normalized_tool_call)
+                logger.debug(f"Tool: {tool!r}")
+                logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
+                
+                # Execute tool using the manager
+                tool_result = tool_manager.execute_func(tool)
+                logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
+                
+                # Log the actual result content
+                if hasattr(tool_result, 'output'):
+                    output_str = str(tool_result.output)
+                    logger.info(f"[TOOL_EXECUTION] Tool {tool.name} output length: {len(output_str)} characters")
+                    logger.debug(f"[TOOL_EXECUTION] Tool {tool.name} output preview: {output_str[:500]}...")
+                    
+                    # If it's a list, log the count
+                    if isinstance(tool_result.output, list):
+                        logger.info(f"[TOOL_EXECUTION] Tool {tool.name} returned a list with {len(tool_result.output)} items")
+                        for idx, item in enumerate(tool_result.output[:5]):  # Log first 5 items
+                            logger.debug(f"[TOOL_EXECUTION]   Item {idx+1}: {str(item)[:100]}...")
 
-            tool_result = tool_manager.execute_func(tool)
-            
-            print("Tool Result:")
-            print(tool_result)
-            logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
-
-            results.append(tool_result)
-            # except Exception as e:
-            #     print(e)
-            #     logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {str(e)}")
-            #     raise ToolExecutionError(
-            #         "Failed to execute tool",
-            #         tool_name=tool_call.get('name', 'unknown'),
-            #         error=e
-            #     )
-        print("Results:")
-        print(results)
+                results.append(tool_result)
+            except Exception as e:
+                error_msg = str(e)
+                logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {error_msg}")
+                
+                # Check if it's a parameter error (signature mismatch, missing required params, etc)
+                is_param_error = any(keyword in error_msg.lower() for keyword in [
+                    'parameter', 'argument', 'signature', 'kwargs', 'missing', 
+                    'required', 'unexpected', 'positional', 'keyword-only'
+                ])
+                
+                # Create FunctionOutput with error information
+                error_output = FunctionOutput(
+                    name=tool_call.get('name', 'unknown'),
+                    input=tool_call,
+                    output=None,
+                    error=error_msg
+                )
+                results.append(error_output)
+                
+                # If it's not a parameter error, we might want to raise it
+                if not is_param_error:
+                    logger.warning(f"Non-parameter error occurred: {error_msg}")
+                    # Optionally raise for non-parameter errors
+                    # raise ToolExecutionError(
+                    #     "Failed to execute tool",
+                    #     tool_name=tool_call.get('name', 'unknown'),
+                    #     error=e
+                    # )
         return results
 
     def _add_unique_results(self, all_results: list, new_results: list) -> list:
@@ -487,6 +559,16 @@ class LLMClient(Component):
                 
                 previous_tool_calls = current_tool_calls
                 new_results = self._execute_tool_calls(current_tool_calls, tool_manager)
+                
+                # Check if any of the new results are errors
+                has_errors = any(hasattr(r, 'error') and r.error is not None for r in new_results)
+                if has_errors:
+                    logger.info(f"[LLM_RETRY] Tool execution resulted in errors, will retry")
+                    # Add error results to accumulated results so LLM can see them
+                    all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
+                    retry_count += 1
+                    continue  # Continue the retry loop
+                    
             except ToolExecutionError:
                 raise  # Re-raise tool execution errors immediately
 
@@ -498,8 +580,10 @@ class LLMClient(Component):
                 self._cache_response(cache_key, final_response)
                 return final_response
 
-            # Check if we're making progress
-            current_tool_count = len(all_tool_call_results) + len(new_results)
+            # Check if we're making progress (only count successful results)
+            successful_new_results = [r for r in new_results if not hasattr(r, 'error') or r.error is None]
+            current_tool_count = len([r for r in all_tool_call_results if not hasattr(r, 'error') or r.error is None]) + len(successful_new_results)
+            
             if current_tool_count == last_successful_tool_count and retry_count > 0:
                 self._log("No progress made in tool execution, considering early exit")
                 logger.info(f"[LLM_RETRY] No progress made - tool count remains at {current_tool_count}")
@@ -521,8 +605,6 @@ class LLMClient(Component):
         # Otherwise, make a final direct call
         self._log(f"Exhausted retries ({retry_count}), making final direct call")
         
-        print("All Tool Call Results:")
-        print(all_tool_call_results)
         final_response = self._execute_direct_call(
             generator, system_prompt, user_query, all_tool_call_results
         )
@@ -548,25 +630,44 @@ class LLMClient(Component):
             Processed response
         """
         logger.info("Making direct call without tool manager")
-        
-        print("Tool Results:")
-        print(tool_results)
 
         formatted_query = f"""User query:
 {user_query}"""
 
-        tool_results_json = [
-            {
-                "name": x.name,
-                "output": x.output
-            }
-            for x in tool_results
-        ]
+        # Separate successful and failed results
+        successful_results = [r for r in tool_results if not hasattr(r, 'error') or r.error is None]
+        failed_results = [r for r in tool_results if hasattr(r, 'error') and r.error is not None]
         
-        formatted_query += f"""
+        if successful_results:
+            tool_results_json = [
+                {
+                    "name": x.name,
+                    "output": x.output
+                }
+                for x in successful_results
+            ]
+            
+            formatted_query += f"""
                 
-Tool calls:
+Successful tool calls:
 {json.dumps(tool_results_json)}"""
+        
+        if failed_results:
+            error_results_json = [
+                {
+                    "name": x.name,
+                    "error": x.error,
+                    "input": x.input if hasattr(x, 'input') else None
+                }
+                for x in failed_results
+            ]
+            
+            formatted_query += f"""
+
+Failed tool calls (with errors):
+{json.dumps(error_results_json)}
+
+Note: Some tool calls failed due to parameter errors. Please provide the best response you can based on the successful results, or explain what went wrong if all tools failed."""
         
         class GenericFactory(ModelFactory[system_prompt.output_format]):
             pass

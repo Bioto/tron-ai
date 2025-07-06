@@ -4,7 +4,7 @@ from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.modules.tasks import Task
 from tron_ai.modules.tasks.models import AgentAssignedTask
 from tron_ai.models.prompts import Prompt
-from tron_ai.executors.tasker.models import AgentRouterResults
+from tron_ai.executors.swarm.models import AgentRouterResults
 
 import logging
 
@@ -78,17 +78,30 @@ class AgentSelector:
         logging.info(f"Selecting agents for {len(tasks)} tasks")
         
         router_prompt = Prompt(
-            text="You are a helpful assistant that selects the most appropriate agent for a given user query.",
+            text='''
+            You are a helpful assistant that selects the most appropriate agent for a given user query.
+            You are given a list of agents and a list of tasks.
+            You need to select the most appropriate agent for each task.
+            You need to select the most appropriate agent for the user query.
+            You need to select the most appropriate agent for the user query.
+            
+            Agents:
+            {{agents}}
+            
+            Tasks:
+            {{tasks}}
+            ''',
             output_format=AgentRouterResults
         )
-        agent_info = [(agent.name, agent.full_description) for agent in agents]
-        task_info = [(task.identifier, task.description) for task in tasks]
-
+        agent_info = "\n".join([f"Name: {agent.name}, Description: {agent.description}" for agent in agents])
+        task_info = "\n".join([f"ID: {task.identifier}, Description: {task.description}" for task in tasks])
+        
         response = self.client.call(
             user_query=user_query,
             system_prompt=router_prompt,
             prompt_kwargs={"agents": agent_info, "tasks": task_info},
         )
+        
         selected_agents = response.selected_agents
         logging.info(f"LLM selected {len(selected_agents)} agent-task pairs")
 

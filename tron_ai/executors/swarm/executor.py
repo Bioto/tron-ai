@@ -1,10 +1,10 @@
-from .tools import DelegateTools
-from .models import DelegateState
+from .tools import SwarmTools
+from .models import SwarmState
 from tron_ai.utils.graph.graph import StateGraph
 from tron_ai.executors.base import Executor
 from tron_ai.exceptions import ExecutionError
 
-def build_delegate_graph(tools: DelegateTools) -> StateGraph:
+def build_swarm_graph(tools: SwarmTools) -> StateGraph:
     """Constructs the state graph for the task delegation workflow.
 
     This function defines the control flow for the multi-agent delegation process.
@@ -53,7 +53,7 @@ def build_delegate_graph(tools: DelegateTools) -> StateGraph:
     return graph
         
 
-class TaskerExecutor(Executor):
+class SwarmExecutor(Executor):
     """An agent executor that orchestrates a team of specialized agents.
 
     This executor manages the entire lifecycle of a user request by delegating
@@ -67,7 +67,7 @@ class TaskerExecutor(Executor):
             implementation for each step in the delegation process.
     """
 
-    def __init__(self, state: DelegateState, *args, **kwargs):
+    def __init__(self, state: SwarmState, *args, **kwargs):
         """Initializes the DelegateExecutor.
 
         Args:
@@ -77,10 +77,10 @@ class TaskerExecutor(Executor):
             **kwargs: Arbitrary keyword arguments passed to the base executor.
         """
         super().__init__(*args, **kwargs)
-        self.state: DelegateState = state
-        self.tools: DelegateTools = DelegateTools(client=self.client)
+        self.state: SwarmState = state
+        self.tools: SwarmTools = SwarmTools(client=self.client)
 
-    async def execute(self, user_query: str) -> DelegateState:
+    async def execute(self, user_query: str) -> SwarmState:
         """Execute the delegation workflow for the given user query.
         
         Args:
@@ -94,12 +94,13 @@ class TaskerExecutor(Executor):
         """
         self.logger.info(f"Starting execution for query: {user_query}")
         try:
-            graph = build_delegate_graph(self.tools)
+            graph = build_swarm_graph(self.tools)
             state = self.state.model_copy(update={
                 "user_query": user_query,
                 "agents": self.state.agents
             })
             result = await graph.run(initial_state=state)
+
             return result
             
         except ExecutionError as e:

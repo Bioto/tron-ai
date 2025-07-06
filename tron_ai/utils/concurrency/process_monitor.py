@@ -332,7 +332,7 @@ class ProcessMonitor:
             logger.error(f"Error stopping process for {server_name}: {str(e)}")
             return False
 
-    async def stop_all_processes(self, timeout: float = 5.0):
+    async def stop_all_processes(self, timeout: float = 30.0):
         """Stop all processes."""
         self._shutdown = True
 

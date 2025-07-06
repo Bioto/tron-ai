@@ -284,7 +284,7 @@ class ConnectionPool:
         # Stop all processes using async monitor
         try:
             self._event_loop.run_sync(
-                lambda: self._process_monitor.stop_all_processes(timeout=5.0)
+                lambda: self._process_monitor.stop_all_processes(timeout=10.0)
             )
         except Exception as e:
             logger.error(f"Error stopping processes: {str(e)}")

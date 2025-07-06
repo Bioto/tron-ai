@@ -242,8 +242,9 @@ async def ask(user_query: str, agent: str) -> str:
 
 
 @cli.command()
+@click.argument("user_query")
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist"]))
-async def chat(agent: str):
+async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
     console = Console()
     client = LLMClient(
@@ -269,17 +270,22 @@ async def chat(agent: str):
             logging=True,
         ),
     )
+    triggered = False
     conversation_history = []
     console.print("[bold cyan]Welcome to Tron AI chat! Type 'exit', 'quit', or 'bye' to leave.[/bold cyan]")
     while True:
         try:
-            user_input = RichPrompt.ask("[bold green]You[/bold green]")
-            
+            if triggered:
+                user_input = RichPrompt.ask("[bold green]You[/bold green]")
+            else:
+                user_input = user_query
+                triggered = True
+                
             if user_input.strip().lower() in ["exit", "quit", "bye"]:
                 console.print("[bold yellow]Goodbye![/bold yellow]")
                 break
             
-            relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
+            # relevant_memory = memory.search(query=user_input, user_id="tron", limit=5, threshold=0.5)
             
 
             # Format conversation history as a bulleted list with headers
@@ -288,14 +294,14 @@ async def chat(agent: str):
                 context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
                 
             
-            if relevant_memory["results"]:
-                memories_str = "## Retrieved Memories About the User\n" + "\n".join(
-                    f"- {entry['memory']}" for entry in relevant_memory["results"]
-                )
+            # if relevant_memory["results"]:
+            #     memories_str = "## Retrieved Memories About the User\n" + "\n".join(
+            #         f"- {entry['memory']}" for entry in relevant_memory["results"]
+            #     )
             
-                full_query = f"{context}\n\n{memories_str}\n"
-            else:
-                full_query = f"{context}\n" 
+            #     full_query = f"{context}\n\n{memories_str}\n"
+            # else:
+            full_query = f"{context}\n" 
                 
             full_query += f"User Input: {user_input}"
             
@@ -305,10 +311,10 @@ async def chat(agent: str):
             conversation_history.append(("User", user_input))
             response = await executor.execute(user_query=full_query.rstrip(), agent=agent)
           
-            memory.add([{
-                "role": message[0].lower(),
-                "content": message[1]             
-            } for message in conversation_history], user_id="tron")
+            # memory.add([{
+            #     "role": message[0].lower(),
+            #     "content": message[1]             
+            # } for message in conversation_history], user_id="tron")
             
             conversation_history.append(("Assistant", response.response))
             

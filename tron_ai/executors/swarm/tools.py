@@ -1,4 +1,5 @@
 # Standard library imports
+from datetime import datetime
 import logging
 from dataclasses import dataclass
 
@@ -7,13 +8,17 @@ from tron_ai.exceptions import ExecutionError
 from tron_ai.modules.tasks import Task
 from tron_ai.models.prompts import Prompt
 from tron_ai.utils.llm.LLMClient import LLMClient
-from tron_ai.utils.io.prompt_loader import load_local_prompt
 
 # Local imports
-from .models import DelegateState, AgentManagerResults
-from tron_ai.executors.tasker.utilities.agent_selector import AgentSelector
-from tron_ai.executors.tasker.utilities.report_generator import ReportGenerator
-from tron_ai.executors.tasker.utilities.task_executor import TaskExecutor
+from .models import SwarmState, SwarmResults
+from tron_ai.executors.swarm.utilities.agent_selector import AgentSelector
+from tron_ai.executors.swarm.utilities.report_generator import ReportGenerator
+from tron_ai.executors.swarm.utilities.task_executor import TaskExecutor
+
+def load_local_prompt(prompt_name: str) -> str:
+    import os
+    with open(os.path.join(os.path.dirname(__file__), "prompts", f"{prompt_name}.md"), "r") as file:
+        return file.read()
 
 @dataclass
 class ExecutionResult:
@@ -65,7 +70,7 @@ class ExecutionResult:
                 markdown += task.result.response + "\n"
         return markdown
 
-class DelegateTools:
+class SwarmTools:
     """Orchestrates task generation, assignment, and execution using a delegate agent model.
 
     This class acts as the central coordinator for a multi-agent system. It takes a
@@ -94,7 +99,7 @@ class DelegateTools:
         self.task_executor = TaskExecutor(self.client)
         self.report_generator = ReportGenerator(self.client)
         
-    async def generate_tasks(self, state: DelegateState) -> DelegateState:
+    async def generate_tasks(self, state: SwarmState) -> SwarmState:
         """Generates a list of tasks by interpreting the user's query.
 
         This method uses the LLM to analyze the user's request and break it down
@@ -116,8 +121,8 @@ class DelegateTools:
         self.logger.info(f"Processing user query: {state.user_query}")
         try:
             task_manager_prompt = Prompt(
-                text=load_local_prompt("agent_manager"),
-                output_format=AgentManagerResults,
+                text=load_local_prompt("agent_manager") + "\n\n" + "Today's date is " + datetime.now().strftime("%Y-%m-%d") ,
+                output_format=SwarmResults,
             )
             self.logger.debug("Built task manager prompt.")
 
@@ -148,7 +153,7 @@ class DelegateTools:
             self.logger.exception(f"Error generating tasks: {str(e)}")
             raise ExecutionError(f"Failed to generate tasks: {str(e)}") from e
 
-    async def process_tasks(self, state: DelegateState) -> DelegateState:
+    async def process_tasks(self, state: SwarmState) -> SwarmState:
         """Processes the initial user query to generate and prepare tasks for execution.
 
         This method orchestrates the first step of the delegation process. It calls
@@ -171,7 +176,7 @@ class DelegateTools:
         self.logger.debug("Exiting process_tasks.")
         return state
 
-    async def assign_agents(self, state: DelegateState) -> DelegateState:
+    async def assign_agents(self, state: SwarmState) -> SwarmState:
         """Assigns the most suitable agent to each task in the list.
 
         This method uses the `AgentSelector` utility to determine the best agent for
@@ -209,7 +214,7 @@ class DelegateTools:
         self.logger.debug("Exiting assign_agents.")
         return state
 
-    async def execute_tasks(self, state: DelegateState) -> DelegateState:
+    async def execute_tasks(self, state: SwarmState) -> SwarmState:
         """Executes all assigned tasks and updates the state with the results.
 
         This method uses the `TaskExecutor` to run the operations for each task.
@@ -241,7 +246,7 @@ class DelegateTools:
             self.logger.exception(f"Error during task execution: {str(e)}")
             raise ExecutionError(f"Error during task execution: {str(e)}") from e
 
-    async def handle_results(self, state: DelegateState) -> DelegateState:
+    async def handle_results(self, state: SwarmState) -> SwarmState:
         """Compiles the results of all executed tasks into a final report.
 
         After all tasks have been executed, this method processes the results. It
@@ -263,6 +268,10 @@ class DelegateTools:
 
         self.logger.info("Task execution completed")
         self.logger.debug(f"Handling results for {len(state.tasks)} completed tasks.")
+        # Log the full results object
+        self.logger.debug(f"Full state.tasks: {state.tasks}")
+        for i, task in enumerate(state.tasks):
+            self.logger.debug(f"Task {i+1} result: {getattr(task.result, 'response', task.result)}")
         state.results = state.tasks
         task_descriptions = [task.description for task in state.tasks]
         state.report = (
@@ -270,11 +279,13 @@ class DelegateTools:
         )
         self.logger.debug(f"Generated report: {state.report}")
         self.logger.debug("Exiting handle_results.")
+        
+
         return state
 
     def create_error(
-        self, state: DelegateState, error_message: str = None
-    ) -> DelegateState:
+        self, state: SwarmState, error_message: str = None
+    ) -> SwarmState:
         """Handles an error state by clearing tasks and results.
 
         This method is called when an unrecoverable error occurs. It resets the

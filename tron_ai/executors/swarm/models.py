@@ -3,9 +3,12 @@ from tron_ai.modules.tasks import Task
 from tron_ai.models.agent import Agent
 from typing import List, Optional
 from tron_ai.models.prompts import PromptMeta, ToolCall
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class DelegateState(BaseModel):
+class SwarmState(BaseModel):
     """A state model for tracking the progress and results of delegated tasks.
 
     This class maintains the state of a delegation workflow, including the original
@@ -26,8 +29,10 @@ class DelegateState(BaseModel):
     report: str = Field(default="", description="The final compiled report of the delegation workflow")
     
     def task_report(self) -> str:
+        logger.info(f"Generating task report for {len(self.tasks)} tasks")
         markdown = "# Task Execution Plan\n\n"
         for i, task in enumerate(self.tasks):
+            logger.debug(f"Processing task {i+1}: {task.identifier}")
             markdown += f"## Task {i + 1}: {task.description}\n\n"
             markdown += f"- **ID**: `{task.identifier}`\n"
             markdown += f"- **Priority**: {task.priority}\n"
@@ -46,9 +51,16 @@ class DelegateState(BaseModel):
             if task.result:
                 markdown += "## Results\n\n"
                 if hasattr(task.result, 'response') and task.result.response:
+                    result_length = len(task.result.response)
+                    logger.info(f"Task {i+1} has result with {result_length} characters")
+                    logger.debug(f"Task {i+1} result preview: {task.result.response[:200]}...")
                     markdown += task.result.response + "\n"
                 else:
+                    logger.info(f"Task {i+1} has result of type: {type(task.result)}")
                     markdown += f"```json\n{task.result}\n```\n"
+        
+        total_length = len(markdown)
+        logger.info(f"Generated task report with total length: {total_length} characters")
         return markdown
     
     
@@ -100,7 +112,7 @@ class AgentRouterResults(PromptMeta, BaseModel):
         default=None,
     )
 
-class AgentManagerResults(PromptMeta, BaseModel):
+class SwarmResults(PromptMeta, BaseModel):
     """Results from the agent manager containing the list of tasks to be executed.
 
     This model represents the output from the agent manager which breaks down user queries

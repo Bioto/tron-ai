@@ -33,7 +33,7 @@ def main():
       creds.refresh(Request())
     else:
       flow = InstalledAppFlow.from_client_secrets_file(
-          "./tron_ai/client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json", SCOPES
+          "./.secrets/client_secret_487115951073-h6fn2voj96eaukne7h88hllh8ffjhpu9.apps.googleusercontent.com.json", SCOPES
       )
       creds = flow.run_local_server(port=0)
     # Save the credentials for the next run
