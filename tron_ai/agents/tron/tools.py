@@ -93,14 +93,16 @@ class TronTools:
             frame.function == "execute_on_swarm" and frame.frame is not inspect.currentframe()
             for frame in stack[1:]
         )
+        context = dict(context)  # copy to avoid mutating caller's dict
         if is_subcall:
-            # Inherit root_id from context if present
+            # Inherit root_id from context if present (should always be set by root call)
             root_id = context.get("root_id")
         else:
+            # For root call, set root_id = session_id and propagate in context
             root_id = session_id
-        context = dict(context)  # copy to avoid mutating caller's dict
+            context['root_id'] = root_id
         context['session_id'] = session_id
-        context['root_id'] = root_id
+        # Now context['root_id'] is always correct for sub-calls
         
         # Create LLM client for swarm execution
         llm_client = LLMClient(
