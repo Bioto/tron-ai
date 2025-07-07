@@ -99,10 +99,12 @@ class SwarmExecutor(Executor):
                 "user_query": user_query,
                 "agents": self.state.agents
             })
+            for name, func in graph.nodes.items():
+                async def wrapper(s, func=func, name=name):
+                    return await func(s)
+                graph.nodes[name] = wrapper
             result = await graph.run(initial_state=state)
-
             return result
-            
         except ExecutionError as e:
             self.logger.error(f"Execution failed: {str(e)}")
             raise

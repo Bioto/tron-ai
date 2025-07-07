@@ -8,6 +8,8 @@ from tron_ai.exceptions import (
     TimeoutError as TronTimeoutError,
     AgentError,
 )
+from tron_ai.database.manager import DatabaseManager
+from tron_ai.database.config import DatabaseConfig
 
 import logging
 
@@ -44,7 +46,7 @@ class TaskExecutor:
         )
         self.logger = logging.getLogger(__name__)
 
-    async def execute_tasks(self, tasks: List[Task], user_query: str) -> List[Task]:
+    async def execute_tasks(self, tasks: List[Task], user_query: str, session_id: str = None) -> List[Task]:
         """Executes a list of tasks, handling dependencies and parallelism.
 
         This is the main entry point for the executor. It adds all tasks to the
@@ -54,6 +56,7 @@ class TaskExecutor:
         Args:
             tasks: A list of `Task` objects to be executed.
             user_query: The original user query to provide context for task execution.
+            session_id: The ID of the workflow associated with the task execution.
 
         Returns:
             A list of the `Task` objects that were completed successfully.
@@ -61,6 +64,11 @@ class TaskExecutor:
         Raises:
             TaskError: If one or more tasks fail during execution.
         """
+        db_manager = None
+        if session_id:
+            db_config = DatabaseConfig()
+            db_manager = DatabaseManager(db_config)
+            await db_manager.initialize()
 
         async def task_handler(task: Task, dependency_results: dict[str, str]):
             try:
@@ -106,6 +114,33 @@ class TaskExecutor:
                             self.logger.info(
                                 f"Task '{task.identifier}' completed successfully"
                             )
+                            # --- Database logging for agent-to-agent messages ---
+                            if db_manager:
+                                await db_manager.add_message(
+                                    session_id=session_id,
+                                    role="agent",
+                                    content=operations_query,
+                                    agent_name=task.agent.name,
+                                    meta={
+                                        "task_id": task.identifier,
+                                        "task_description": task.description,
+                                        "operations": task.operations,
+                                        "dependencies": task.dependencies,
+                                    }
+                                )
+                                await db_manager.add_message(
+                                    session_id=session_id,
+                                    role="assistant",
+                                    content=getattr(result, 'response', str(result)),
+                                    agent_name=task.agent.name,
+                                    meta={
+                                        "task_id": task.identifier,
+                                        "task_description": task.description,
+                                        "operations": task.operations,
+                                        "dependencies": task.dependencies,
+                                        "result_type": str(type(result)),
+                                    }
+                                )
                     except asyncio.TimeoutError:
                         error_msg = f"Task execution timed out after {TIMEOUT_TASK_EXECUTION} seconds"
                         self.logger.info(f"Error: {error_msg}")
@@ -196,6 +231,11 @@ class TaskExecutor:
 
         completed_tasks = [t for t in self.task_manager.tasks if t.done and not t.error]
         self.logger.info(f"Successfully completed {len(completed_tasks)} tasks")
+
+        # At the end, close db_manager if used
+        if db_manager:
+            await db_manager.close()
+
         return completed_tasks
 
     def _build_operations_query(

@@ -235,9 +235,8 @@ class SwarmTools:
         self.logger.debug(f"Executing {len(state.tasks)} tasks.")
         try:
             completed_tasks = await self.task_executor.execute_tasks(
-                state.tasks, state.user_query
+                state.tasks, state.user_query, session_id=state.session_id
             )
-
             self.logger.debug(f"Completed {len(completed_tasks)} tasks.")
             state.tasks = completed_tasks
             self.logger.debug("Exiting execute_tasks.")

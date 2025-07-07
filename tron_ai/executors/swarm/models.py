@@ -4,6 +4,7 @@ from tron_ai.models.agent import Agent
 from typing import List, Optional
 from tron_ai.models.prompts import PromptMeta, ToolCall
 import logging
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -16,12 +17,14 @@ class SwarmState(BaseModel):
     and the final report.
 
     Attributes:
+        session_id: The session ID for conversation tracking.
         user_query: The original query from the user that initiated the workflow.
         tasks: A list of Task objects representing the work to be done.
         agents: A list of Agent objects available for task execution.
         results: A list of completed Task objects with their execution results.
         report: The final compiled report of the delegation workflow.
     """
+    session_id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Session ID for conversation tracking")
     user_query: str = Field(default="", description="The original user query that initiated the workflow")
     tasks: List[Task] = Field(default_factory=list, description="List of tasks to be executed")
     agents: List[Agent] = Field(default_factory=list, description="Available agents for task execution")
