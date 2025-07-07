@@ -5,6 +5,9 @@ from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.models.config import LLMClientConfig
 from adalflow import OpenAIClient
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 class TronTools:
@@ -45,21 +48,22 @@ class TronTools:
         return memory.search(query=query, user_id="tron", limit=5, threshold=0.5)
     
     @staticmethod
-    async def execute_on_swarm(query: str, context: dict = None) -> str:
+    async def execute_on_swarm(query: str, session_id: str = None, context: dict = None) -> dict:
         """Execute a query using the swarm executor with multiple specialized agents.
         
         This method delegates complex queries to a swarm of specialized agents that can
         break down the task, assign subtasks to appropriate agents, execute them in parallel,
         and compile the results into a comprehensive response.
         
-        YOU MUST PASS KWARGS TO THIS FUNCTION.
-        
-        kwargs:
+        Args:
             query (str): The user query to be processed by the swarm
+            session_id (str, optional): The session ID for conversation tracking. If not provided, a new one will be generated.
             context (dict, optional): Optional context dictionary containing additional information
-            
+
         Returns:
-            str: A comprehensive response containing the compiled results from all swarm agents.
+            dict: A dictionary containing:
+                - 'session_id': The session ID used for this execution
+                - 'task_report': The comprehensive response containing the compiled results from all swarm agents
                 The response includes:
                 - Task breakdown and assignment details
                 - Individual agent execution results
@@ -70,11 +74,17 @@ class TronTools:
         from tron_ai.executors.swarm.models import SwarmState
         from tron_ai.executors.base import ExecutorConfig
         from tron_ai.exceptions import ExecutionError
+        import uuid
         
         # Initialize context if None
         if context is None:
             context = {}
-            
+        # Generate session_id if not provided
+        if not session_id:
+            session_id = uuid.uuid4().hex
+        context = dict(context)  # copy to avoid mutating caller's dict
+        context['session_id'] = session_id
+        
         # Create LLM client for swarm execution
         llm_client = LLMClient(
             client=OpenAIClient(),
@@ -90,6 +100,7 @@ class TronTools:
         
         # Initialize swarm state with query and context
         swarm_state = SwarmState(
+            session_id=session_id,
             user_query=query,
             agents=[
                 SSHAgent(),
@@ -104,10 +115,32 @@ class TronTools:
             state=swarm_state,
         )
         
-        # try:
-        result = await executor.execute(user_query=query)
-        # Return the detailed task report which includes all results
-        task_report = result.task_report()
-        return task_report
-        # except Exception as e:
-        #     raise ExecutionError(f"Swarm execution failed: {str(e)}") from e
+        try:
+            result = await executor.execute(user_query=query)
+            # Get the task report as a string - this ensures we don't expose internal objects
+            task_report = ""
+            if hasattr(result, 'task_report') and callable(result.task_report):
+                task_report = result.task_report()
+            elif hasattr(result, 'report'):
+                task_report = result.report
+            else:
+                # Fallback: try to extract meaningful information from the result
+                if hasattr(result, 'tasks') and result.tasks:
+                    task_report = f"Completed {len(result.tasks)} tasks"
+                else:
+                    task_report = str(result)
+            
+            # Return only simple, serializable data
+            return {
+                "session_id": session_id, 
+                "task_report": task_report,
+                "status": "success"
+            }
+        except Exception as e:
+            logger.error(f"Error in execute_on_swarm: {str(e)}")
+            return {
+                "session_id": session_id,
+                "task_report": f"Error executing swarm: {str(e)}",
+                "status": "error",
+                "error": str(e)
+            }

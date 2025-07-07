@@ -172,6 +172,10 @@ class LLMClient(Component):
         # try:
         response = system_prompt.output_format(**from_json(results.raw_response))
         self._log("Successfully parsed response")
+        # Ensure tool_calls is always attached only if the model supports it
+        if self._supports_tool_calls(response):
+            if not hasattr(response, 'tool_calls') or response.tool_calls is None:
+                response.tool_calls = []
         return response
         # except Exception as e:
         #     self._log(f"Error parsing response: {str(e)}")
@@ -202,9 +206,14 @@ class LLMClient(Component):
         generator = self._build_generator()
 
         if tool_manager is None:
-            return self._execute_direct_call(
+            result = self._execute_direct_call(
                 generator, system_prompt, user_query, []
             )
+            # Ensure tool_calls is always attached only if the model supports it
+            if self._supports_tool_calls(result):
+                if not hasattr(result, 'tool_calls') or result.tool_calls is None:
+                    result.tool_calls = []
+            return result
         try:    
             # Execute with tool management
             return self._execute_with_tools(
@@ -359,6 +368,10 @@ class LLMClient(Component):
                 results.append(tool_result)
             except Exception as e:
                 error_msg = str(e)
+                # Only treat as error if it's not just missing 'tool_calls' on a valid result
+                if 'object has no field "tool_calls"' in error_msg and tool_call.get('name') == 'execute_on_swarm':
+                    logger.warning(f"Ignoring missing tool_calls on orchestrator result for {tool_call.get('name')}")
+                    continue
                 logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {error_msg}")
                 
                 # Check if it's a parameter error (signature mismatch, missing required params, etc)
@@ -435,7 +448,13 @@ class LLMClient(Component):
             return results[-self._max_accumulated_results :]
         return results
 
-
+    def _supports_tool_calls(self, obj: Any) -> bool:
+        """Check if an object's class supports the tool_calls field."""
+        return (
+            hasattr(obj, '__dict__') and 
+            hasattr(obj.__class__, '__fields__') and 
+            'tool_calls' in obj.__class__.__fields__
+        )
 
     def _execute_with_tools(
         self,
@@ -467,6 +486,10 @@ class LLMClient(Component):
         cache_key = f"{user_query}:{orjson.dumps(prompt_kwargs)}"
         cached_response = self._get_cached_response(cache_key)
         if cached_response:
+            # Ensure tool_calls is always attached only if the model supports it
+            if self._supports_tool_calls(cached_response):
+                if not hasattr(cached_response, 'tool_calls') or cached_response.tool_calls is None:
+                    cached_response.tool_calls = []
             return cached_response
 
         # Prepare tool-specific prompt kwargs
@@ -543,6 +566,22 @@ class LLMClient(Component):
                         self._log("LLM provided final response with duplicates. Returning response.")
                         logger.info(f"[LLM_RETRY] Returning final response: {dataset.get('response', 'N/A')}")
                         final_response = system_prompt.output_format(**dataset)
+                        # Ensure tool_calls is always attached only if the model supports it
+                        if self._supports_tool_calls(final_response):
+                            final_response.tool_calls = []
+                            for r in all_tool_call_results:
+                                tool_call_entry = {
+                                    "name": getattr(r, 'name', None),
+                                    "args": getattr(r, 'args', None),
+                                    "kwargs": getattr(r, 'kwargs', None),
+                                    "error": getattr(r, 'error', None)
+                                }
+                                # Prefer tool_calls if present, else output
+                                if hasattr(r, 'tool_calls'):
+                                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                                else:
+                                    tool_call_entry["output"] = getattr(r, 'output', None)
+                                final_response.tool_calls.append(tool_call_entry)
                         self._cache_response(cache_key, final_response)
                         return final_response
                     # Otherwise, break to make final direct call
@@ -554,6 +593,21 @@ class LLMClient(Component):
                 if "response" in dataset and not current_tool_calls:
                     self._log("LLM provided final response without tool calls. Returning response.")
                     final_response = system_prompt.output_format(**dataset)
+                    # Ensure tool_calls is always attached only if the model supports it
+                    if self._supports_tool_calls(final_response):
+                        final_response.tool_calls = []
+                        for r in all_tool_call_results:
+                            tool_call_entry = {
+                                "name": getattr(r, 'name', None),
+                                "args": getattr(r, 'args', None),
+                                "kwargs": getattr(r, 'kwargs', None),
+                                "error": getattr(r, 'error', None)
+                            }
+                            if hasattr(r, 'tool_calls'):
+                                tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                            else:
+                                tool_call_entry["output"] = getattr(r, 'output', None)
+                            final_response.tool_calls.append(tool_call_entry)
                     self._cache_response(cache_key, final_response)
                     return final_response
                 
@@ -592,6 +646,22 @@ class LLMClient(Component):
                 if "response" in dataset:
                     self._log("LLM provided final response despite tool calls. Returning response.")
                     final_response = system_prompt.output_format(**dataset)
+                    # Ensure tool_calls is always attached only if the model supports it
+                    if self._supports_tool_calls(final_response):
+                        final_response.tool_calls = []
+                        for r in all_tool_call_results:
+                            tool_call_entry = {
+                                "name": getattr(r, 'name', None),
+                                "args": getattr(r, 'args', None),
+                                "kwargs": getattr(r, 'kwargs', None),
+                                "error": getattr(r, 'error', None)
+                            }
+                            # Prefer tool_calls if present, else output
+                            if hasattr(r, 'tool_calls'):
+                                tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                            else:
+                                tool_call_entry["output"] = getattr(r, 'output', None)
+                            final_response.tool_calls.append(tool_call_entry)
                     self._cache_response(cache_key, final_response)
                     return final_response
                 # Otherwise, force a final direct call
@@ -608,6 +678,22 @@ class LLMClient(Component):
         final_response = self._execute_direct_call(
             generator, system_prompt, user_query, all_tool_call_results
         )
+        # Attach tool_calls to the response object only if the model supports it
+        if self._supports_tool_calls(final_response):
+            final_response.tool_calls = []
+            for r in all_tool_call_results:
+                tool_call_entry = {
+                    "name": getattr(r, 'name', None),
+                    "args": getattr(r, 'args', None),
+                    "kwargs": getattr(r, 'kwargs', None),
+                    "error": getattr(r, 'error', None)
+                }
+                # Prefer tool_calls if present, else output
+                if hasattr(r, 'tool_calls'):
+                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                else:
+                    tool_call_entry["output"] = getattr(r, 'output', None)
+                final_response.tool_calls.append(tool_call_entry)
         self._cache_response(cache_key, final_response)
         return final_response
 
@@ -685,6 +771,21 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
         # try:
         response = system_prompt.output_format(**json.loads(results.data))
         self._log("Successfully processed response")
+        # Attach tool_calls to the response object only if the model supports it
+        if self._supports_tool_calls(response):
+            response.tool_calls = []
+            for r in tool_results:
+                tool_call_entry = {
+                    "name": getattr(r, 'name', None),
+                    "args": getattr(r, 'args', None),
+                    "kwargs": getattr(r, 'kwargs', None),
+                    "error": getattr(r, 'error', None)
+                }
+                if hasattr(r, 'tool_calls'):
+                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                else:
+                    tool_call_entry["output"] = getattr(r, 'output', None)
+                response.tool_calls.append(tool_call_entry)
         return response
         # except Exception as e:
         #     self._log(f"Error processing response: {str(e)}")

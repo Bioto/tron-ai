@@ -29,6 +29,7 @@ class Message(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, index=True)
     conversation_id = Column(Integer, ForeignKey("conversations.id"), nullable=False)
+    task_id = Column(String(64), nullable=True, index=True)
     role = Column(String(50), nullable=False, index=True)  # user, assistant, system
     content = Column(Text, nullable=False)
     agent_name = Column(String(100), nullable=True, index=True)
@@ -36,6 +37,10 @@ class Message(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     meta = Column(JSON, nullable=True)
     conversation = relationship("Conversation", back_populates="messages")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print(f"[DEBUG] Message.tool_calls: {kwargs.get('tool_calls')}")
 
 class AgentSession(Base):
     __tablename__ = "agent_sessions"
@@ -51,6 +56,10 @@ class AgentSession(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     meta = Column(JSON, nullable=True)
     conversation = relationship("Conversation", back_populates="agent_sessions")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        print(f"[DEBUG] AgentSession.tool_calls: {kwargs.get('tool_calls')}")
 
 # Pydantic models for API responses
 class ConversationResponse(BaseModel):
@@ -70,6 +79,7 @@ class ConversationResponse(BaseModel):
 class MessageResponse(BaseModel):
     id: int
     conversation_id: int
+    task_id: Optional[str] = None
     role: str
     content: str
     agent_name: Optional[str] = None

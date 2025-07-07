@@ -332,7 +332,7 @@ async def chat(user_query: str, agent: str):
                 agent_name=agent_instance.name,
                 user_query=user_input,
                 agent_response=response.response,
-                tool_calls=response.tool_calls if hasattr(response, 'tool_calls') else None,
+                tool_calls=getattr(response, 'tool_calls', None),
                 execution_time_ms=execution_time_ms,
                 success=True,
                 meta=None
@@ -343,7 +343,7 @@ async def chat(user_query: str, agent: str):
                 role="assistant",
                 content=response.response,
                 agent_name=agent_instance.name,
-                tool_calls=response.tool_calls if hasattr(response, 'tool_calls') else None,
+                tool_calls=getattr(response, 'tool_calls', None),
                 meta=None
             )
             console.print(f"[bold blue]Assistant:[/bold blue] {response.response}")

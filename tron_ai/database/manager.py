@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
 from sqlalchemy import select, update, delete, func, desc, and_
 from sqlalchemy.orm import selectinload
+from sqlalchemy.exc import IntegrityError
 
 from .config import DatabaseConfig
 from .models import Base, Conversation, Message, AgentSession
@@ -112,15 +113,32 @@ class DatabaseManager:
             return ConversationResponse.model_validate(conversation)
 
     # Message Management
-    async def add_message(self, session_id: str, role: str, content: str, agent_name: Optional[str] = None, tool_calls: Optional[List[Dict[str, Any]]] = None, meta: Optional[Dict[str, Any]] = None) -> Optional[MessageResponse]:
+    async def add_message(self, session_id: str, role: str, content: str, agent_name: Optional[str] = None, tool_calls: Optional[List[Dict[str, Any]]] = None, meta: Optional[Dict[str, Any]] = None, task_id: Optional[str] = None) -> Optional[MessageResponse]:
         async with self.get_session() as session:
             stmt = select(Conversation).where(Conversation.session_id == session_id)
             result = await session.execute(stmt)
             conversation = result.scalar_one_or_none()
             if not conversation:
-                return None
+                # Try to create conversation, handle race condition
+                conversation = Conversation(
+                    session_id=session_id,
+                    agent_name=agent_name or "swarm",
+                    title=f"Swarm session {session_id}",
+                    meta={"auto_created": True}
+                )
+                session.add(conversation)
+                try:
+                    await session.flush()
+                except IntegrityError:
+                    await session.rollback()
+                    # Fetch the conversation that was just created by another process
+                    result = await session.execute(stmt)
+                    conversation = result.scalar_one_or_none()
+                    if not conversation:
+                        raise  # Unexpected: should exist now
             message = Message(
                 conversation_id=conversation.id,
+                task_id=task_id,
                 role=role,
                 content=content,
                 agent_name=agent_name,

@@ -98,23 +98,19 @@ class AgentRouterResults(PromptMeta, BaseModel):
             and one task ID. The list will be empty if no suitable agent-task matches were found.
             Each agent can only be paired with one task, and each task can only be assigned to one agent.
 
-        confidence (Optional[float]): A confidence score between 0 and 1 indicating the router's
-            assessment of how well the selected one-to-one agent-task pairings match. Higher scores
-            (closer to 1) indicate stronger matches where agents are highly qualified for their assigned
-            tasks. Lower scores (closer to 0) suggest less optimal matches. Will be None if no agents
-            were selected. This score considers factors like agent capabilities, task requirements,
-            and the overall fit of the assignments.
+        confidence_score (float): A score between 0 and 1 indicating how confident the router is in the overall agent-task assignments
     """
 
     selected_agents: List[AgentRouterSelectedAgent] = Field(
         description="List of agent-task pairings, each containing an agent name and their assigned task ID",
         default=[],
     )
-    confidence: Optional[float] = Field(
-        description="Confidence score (0-1) indicating the quality of the agent-task matches",
-        default=None,
+    confidence_score: float = Field(
+        description="A score between 0 and 1 indicating how confident the router is in the overall agent-task assignments",
+        ge=0.0,
+        le=1.0
     )
-
+    
 class SwarmResults(PromptMeta, BaseModel):
     """Results from the agent manager containing the list of tasks to be executed.
 

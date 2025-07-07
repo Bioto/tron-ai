@@ -12,6 +12,7 @@ from tron_ai.database.manager import DatabaseManager
 from tron_ai.database.config import DatabaseConfig
 
 import logging
+import types
 
 
 class TaskExecutor:
@@ -116,6 +117,26 @@ class TaskExecutor:
                             )
                             # --- Database logging for agent-to-agent messages ---
                             if db_manager:
+                                # Only log tool_calls if result is not a router/orchestrator result and not just the known error
+                                tool_calls_to_log = None
+                                # Check if the result actually has tool_calls before trying to access it
+                                try:
+                                    if hasattr(result, 'tool_calls') and result.tool_calls:
+                                        # Defensive: skip if result is a known router/orchestrator type or just the known error
+                                        router_types = (str,)
+                                        is_router_type = hasattr(result, '__class__') and result.__class__.__name__ in ["AgentRouterResults", "SwarmResults"]
+                                        # Check for the specific error pattern
+                                        is_only_router_error = (
+                                            len(result.tool_calls) == 1 and
+                                            result.tool_calls[0].get('name') == 'execute_on_swarm' and
+                                            'AgentRouterResults' in str(result.tool_calls[0].get('error', ''))
+                                        )
+                                        if not is_router_type and not is_only_router_error:
+                                            tool_calls_to_log = result.tool_calls
+                                except AttributeError:
+                                    # If we get an AttributeError when accessing tool_calls, just skip it
+                                    self.logger.debug(f"Result type {type(result).__name__} does not have tool_calls field")
+                                    tool_calls_to_log = None
                                 await db_manager.add_message(
                                     session_id=session_id,
                                     role="agent",
@@ -126,19 +147,44 @@ class TaskExecutor:
                                         "task_description": task.description,
                                         "operations": task.operations,
                                         "dependencies": task.dependencies,
-                                    }
+                                    },
+                                    task_id=task.identifier
                                 )
-                                await db_manager.add_message(
+                                # Prepare content for assistant message
+                                content = getattr(result, 'response', None)
+                                if not content:
+                                    content = str(result) if result is not None else ""
+                                # Only log assistant message if content is not empty
+                                if content:
+                                    await db_manager.add_message(
+                                        session_id=session_id,
+                                        role="assistant",
+                                        content=content,
+                                        agent_name=task.agent.name,
+                                        tool_calls=tool_calls_to_log,
+                                        meta={
+                                            "task_id": task.identifier,
+                                            "task_description": task.description,
+                                            "operations": task.operations,
+                                            "dependencies": task.dependencies,
+                                            "result_type": str(type(result)),
+                                        },
+                                        task_id=task.identifier
+                                    )
+                                await db_manager.add_agent_session(
                                     session_id=session_id,
-                                    role="assistant",
-                                    content=getattr(result, 'response', str(result)),
                                     agent_name=task.agent.name,
+                                    user_query=operations_query,
+                                    agent_response=getattr(result, 'response', str(result)),
+                                    tool_calls=tool_calls_to_log,
+                                    execution_time_ms=None,
+                                    success=True,
+                                    error_message=None,
                                     meta={
                                         "task_id": task.identifier,
                                         "task_description": task.description,
                                         "operations": task.operations,
                                         "dependencies": task.dependencies,
-                                        "result_type": str(type(result)),
                                     }
                                 )
                     except asyncio.TimeoutError:
