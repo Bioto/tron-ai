@@ -10,12 +10,19 @@ class SSHAgentTools:
         key_filename: str = None,
         port: int = 22,
         timeout: int = 10,
-        command: str = ""
+        command: str = "",
+        session_id: str = None
     ) -> dict:
         """
         Connect to a remote server via SSH and execute a command.
         Returns a dict with output, error, and exit_code.
         """
+        if False:  # Replace with actual sub-agent call check if added
+            if not session_id:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning("[SESSION] run_ssh_command called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
+                assert False, "run_ssh_command called without session_id. Session tracking will break."
         config = SSHConnectionConfig(
             hostname=hostname,
             username=username,

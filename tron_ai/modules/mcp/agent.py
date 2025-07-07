@@ -199,6 +199,15 @@ class Agent(TronAgent):
                         param_info,
                     ):
                         async def tool_function(*args, **kwargs):
+                            # Always propagate session_id if present
+                            session_id = kwargs.get("session_id")
+                            # If this tool is calling execute_on_swarm, enforce session_id propagation
+                            if "execute_on_swarm" in func_name or "agent" in func_name:
+                                if not session_id:
+                                    import logging
+                                    logger = logging.getLogger(__name__)
+                                    logger.warning(f"[SESSION] MCP tool '{tool_name}' called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
+                                    assert False, f"MCP tool '{tool_name}' called without session_id. Session tracking will break."
                             kwargs.pop("server_name", None)
                             return await execute_server_function(
                                 function_name=function_name,

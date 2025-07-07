@@ -8,7 +8,7 @@ class TodoistTools:
     
     @staticmethod
     def get_tasks(project_id: str = None, label_id: str = None, filter_query: str = None, 
-                  lang: str = "en", ids: List[str] = None) -> Dict[str, Any]:
+                  lang: str = "en", ids: List[str] = None, session_id: str = None) -> Dict[str, Any]:
         """Get all active tasks for the user.
         
         Args:
@@ -17,10 +17,17 @@ class TodoistTools:
             filter_query: Filter tasks by query (e.g., "today", "overdue", "7 days")
             lang: Language for dates (default: "en")
             ids: List of task IDs to retrieve
+            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of task dictionaries with success status
         """
+        if False:  # Replace with actual sub-agent call check if added
+            if not session_id:
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.warning("[SESSION] get_tasks called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
+                assert False, "get_tasks called without session_id. Session tracking will break."
         try:
             client = get_todoist_client()
             tasks = client.get_tasks(

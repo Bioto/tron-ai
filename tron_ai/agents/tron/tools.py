@@ -6,6 +6,8 @@ from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.models.config import LLMClientConfig
 from adalflow import OpenAIClient
 import logging
+import uuid
+import inspect
 
 logger = logging.getLogger(__name__)
 
@@ -59,31 +61,46 @@ class TronTools:
             query (str): The user query to be processed by the swarm
             session_id (str, optional): The session ID for conversation tracking. If not provided, a new one will be generated.
             context (dict, optional): Optional context dictionary containing additional information
-
+        
         Returns:
             dict: A dictionary containing:
                 - 'session_id': The session ID used for this execution
                 - 'task_report': The comprehensive response containing the compiled results from all swarm agents
-                The response includes:
-                - Task breakdown and assignment details
-                - Individual agent execution results
-                - Consolidated final answer
-                - Any errors or issues encountered during execution
+                - 'status': 'success' or 'error'
         """
         from tron_ai.executors.swarm.executor import SwarmExecutor
         from tron_ai.executors.swarm.models import SwarmState
         from tron_ai.executors.base import ExecutorConfig
         from tron_ai.exceptions import ExecutionError
-        import uuid
         
         # Initialize context if None
         if context is None:
             context = {}
         # Generate session_id if not provided
         if not session_id:
+            stack = inspect.stack()
+            is_subcall = any(
+                frame.function == "execute_on_swarm" and frame.frame is not inspect.currentframe()
+                for frame in stack[1:]
+            )
+            if is_subcall:
+                logger.warning("[SESSION] execute_on_swarm called as a sub-call without session_id! This will break session tracking. Please propagate session_id from the parent context.")
+                assert False, "execute_on_swarm called as a sub-call without session_id. Session tracking will break."
             session_id = uuid.uuid4().hex
+        # Set root_id: for root call, root_id = session_id; for sub-calls, inherit from context
+        stack = inspect.stack()
+        is_subcall = any(
+            frame.function == "execute_on_swarm" and frame.frame is not inspect.currentframe()
+            for frame in stack[1:]
+        )
+        if is_subcall:
+            # Inherit root_id from context if present
+            root_id = context.get("root_id")
+        else:
+            root_id = session_id
         context = dict(context)  # copy to avoid mutating caller's dict
         context['session_id'] = session_id
+        context['root_id'] = root_id
         
         # Create LLM client for swarm execution
         llm_client = LLMClient(
@@ -101,6 +118,7 @@ class TronTools:
         # Initialize swarm state with query and context
         swarm_state = SwarmState(
             session_id=session_id,
+            root_id=root_id,
             user_query=query,
             agents=[
                 SSHAgent(),
@@ -132,7 +150,8 @@ class TronTools:
             
             # Return only simple, serializable data
             return {
-                "session_id": session_id, 
+                "session_id": session_id,
+                "root_id": root_id,
                 "task_report": task_report,
                 "status": "success"
             }
@@ -140,6 +159,7 @@ class TronTools:
             logger.error(f"Error in execute_on_swarm: {str(e)}")
             return {
                 "session_id": session_id,
+                "root_id": root_id,
                 "task_report": f"Error executing swarm: {str(e)}",
                 "status": "error",
                 "error": str(e)

@@ -14,10 +14,11 @@ class SwarmState(BaseModel):
 
     This class maintains the state of a delegation workflow, including the original
     user query, the tasks to be executed, available agents, completed results,
-    and the final report.
+    the final report, and the root_id for workflow lineage.
 
     Attributes:
         session_id: The session ID for conversation tracking.
+        root_id: The root workflow/call ID for tracking all related sessions.
         user_query: The original query from the user that initiated the workflow.
         tasks: A list of Task objects representing the work to be done.
         agents: A list of Agent objects available for task execution.
@@ -25,6 +26,7 @@ class SwarmState(BaseModel):
         report: The final compiled report of the delegation workflow.
     """
     session_id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Session ID for conversation tracking")
+    root_id: Optional[str] = Field(default=None, description="Root workflow/call ID for workflow lineage")
     user_query: str = Field(default="", description="The original user query that initiated the workflow")
     tasks: List[Task] = Field(default_factory=list, description="List of tasks to be executed")
     agents: List[Agent] = Field(default_factory=list, description="Available agents for task execution")

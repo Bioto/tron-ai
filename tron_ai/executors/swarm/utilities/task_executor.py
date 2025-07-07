@@ -47,7 +47,7 @@ class TaskExecutor:
         )
         self.logger = logging.getLogger(__name__)
 
-    async def execute_tasks(self, tasks: List[Task], user_query: str, session_id: str = None) -> List[Task]:
+    async def execute_tasks(self, tasks: List[Task], user_query: str, session_id: str = None, root_id: str = None) -> List[Task]:
         """Executes a list of tasks, handling dependencies and parallelism.
 
         This is the main entry point for the executor. It adds all tasks to the
@@ -58,6 +58,7 @@ class TaskExecutor:
             tasks: A list of `Task` objects to be executed.
             user_query: The original user query to provide context for task execution.
             session_id: The ID of the workflow associated with the task execution.
+            root_id: The ID of the root task associated with the task execution.
 
         Returns:
             A list of the `Task` objects that were completed successfully.
@@ -147,8 +148,10 @@ class TaskExecutor:
                                         "task_description": task.description,
                                         "operations": task.operations,
                                         "dependencies": task.dependencies,
+                                        "root_id": root_id,
                                     },
-                                    task_id=task.identifier
+                                    task_id=task.identifier,
+                                    root_id=root_id,
                                 )
                                 # Prepare content for assistant message
                                 content = getattr(result, 'response', None)
@@ -168,8 +171,10 @@ class TaskExecutor:
                                             "operations": task.operations,
                                             "dependencies": task.dependencies,
                                             "result_type": str(type(result)),
+                                            "root_id": root_id,
                                         },
-                                        task_id=task.identifier
+                                        task_id=task.identifier,
+                                        root_id=root_id,
                                     )
                                 await db_manager.add_agent_session(
                                     session_id=session_id,
@@ -185,6 +190,7 @@ class TaskExecutor:
                                         "task_description": task.description,
                                         "operations": task.operations,
                                         "dependencies": task.dependencies,
+                                        "root_id": root_id,
                                     }
                                 )
                     except asyncio.TimeoutError:

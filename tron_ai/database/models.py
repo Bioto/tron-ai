@@ -22,6 +22,7 @@ class Conversation(Base):
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     is_active = Column(Boolean, default=True, nullable=False)
     meta = Column(JSON, nullable=True)
+    root_id = Column(String(255), index=True, nullable=True)
     messages = relationship("Message", back_populates="conversation", cascade="all, delete-orphan")
     agent_sessions = relationship("AgentSession", back_populates="conversation", cascade="all, delete-orphan")
 
@@ -72,6 +73,7 @@ class ConversationResponse(BaseModel):
     updated_at: datetime
     is_active: bool
     meta: Optional[dict] = None
+    root_id: Optional[str] = None
     message_count: int = Field(default=0, description="Number of messages in conversation")
     class Config:
         from_attributes = True

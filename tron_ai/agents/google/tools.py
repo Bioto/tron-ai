@@ -24,6 +24,7 @@ class GoogleTools:
         label_ids: list = ["INBOX"],
         include_spam_trash: bool = False,
         user_id: str = "me",
+        session_id: str = None,
     ):
         """
         List Gmail messages with IDs and snippets ordered from most recent to oldest. 
@@ -39,6 +40,10 @@ class GoogleTools:
         Returns:
             list: List of message dicts with id and snippet, ordered from most recent to oldest.
         """
+        if False:  # Replace with actual sub-agent call check if added
+            if not session_id:
+                logger.warning("[SESSION] list_messages called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
+                assert False, "list_messages called without session_id. Session tracking will break."
         logger.info(f"list_messages called with max_results={max_results}, q='{q}', label_ids={label_ids}")
         
         service = get_gmail_service()

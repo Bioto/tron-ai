@@ -59,14 +59,15 @@ class DatabaseManager:
                 raise
 
     # Conversation Management
-    async def create_conversation(self, session_id: str, agent_name: str, user_id: Optional[str] = None, title: Optional[str] = None, meta: Optional[Dict[str, Any]] = None) -> ConversationResponse:
+    async def create_conversation(self, session_id: str, agent_name: str, user_id: Optional[str] = None, title: Optional[str] = None, meta: Optional[Dict[str, Any]] = None, root_id: Optional[str] = None) -> ConversationResponse:
         async with self.get_session() as session:
             conversation = Conversation(
                 session_id=session_id,
                 user_id=user_id,
                 agent_name=agent_name,
                 title=title,
-                meta=meta
+                meta=meta,
+                root_id=root_id,
             )
             session.add(conversation)
             await session.flush()
@@ -113,18 +114,21 @@ class DatabaseManager:
             return ConversationResponse.model_validate(conversation)
 
     # Message Management
-    async def add_message(self, session_id: str, role: str, content: str, agent_name: Optional[str] = None, tool_calls: Optional[List[Dict[str, Any]]] = None, meta: Optional[Dict[str, Any]] = None, task_id: Optional[str] = None) -> Optional[MessageResponse]:
+    async def add_message(self, session_id: str, role: str, content: str, agent_name: Optional[str] = None, tool_calls: Optional[List[Dict[str, Any]]] = None, meta: Optional[Dict[str, Any]] = None, task_id: Optional[str] = None, root_id: Optional[str] = None) -> Optional[MessageResponse]:
         async with self.get_session() as session:
             stmt = select(Conversation).where(Conversation.session_id == session_id)
             result = await session.execute(stmt)
             conversation = result.scalar_one_or_none()
             if not conversation:
                 # Try to create conversation, handle race condition
+                # If root_id is not provided, try to get from meta/context
+                root_id_to_use = root_id or (meta.get('root_id') if meta and 'root_id' in meta else session_id)
                 conversation = Conversation(
                     session_id=session_id,
                     agent_name=agent_name or "swarm",
                     title=f"Swarm session {session_id}",
-                    meta={"auto_created": True}
+                    meta={"auto_created": True},
+                    root_id=root_id_to_use,
                 )
                 session.add(conversation)
                 try:
