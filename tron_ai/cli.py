@@ -251,6 +251,10 @@ async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
     import uuid
     import time
+    from datetime import datetime
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+    from rich.align import Align
     console = Console()
     db_config = DatabaseConfig()
     db_manager = DatabaseManager(db_config)
@@ -291,9 +295,15 @@ async def chat(user_query: str, agent: str):
             title=f"Chat with {agent_instance.name}",
             meta={"agent_type": agent}
         )
-    
+
+    # Conversation header
+    header = Panel(
+        f"[bold cyan]Tron AI Chat Session[/bold cyan]\n[green]Agent:[/green] {agent_instance.name}\n[dim]Type 'exit', 'quit', or 'bye' to leave.[/dim]",
+        style="bold magenta",
+        expand=False
+    )
+    console.print(header)
     triggered = False
-    console.print("[bold cyan]Welcome to Tron AI chat! Type 'exit', 'quit', or 'bye' to leave.[/bold cyan]")
     while True:
         try:
             if triggered:
@@ -301,11 +311,9 @@ async def chat(user_query: str, agent: str):
             else:
                 user_input = user_query
                 triggered = True
-                
             if user_input.strip().lower() in ["exit", "quit", "bye"]:
-                console.print("[bold yellow]Goodbye![/bold yellow]")
+                console.print(Panel("[bold yellow]Goodbye![/bold yellow]", style="yellow"))
                 break
-            
             # Get conversation history for context
             conversation_history = await db_manager.get_conversation_history(session_id, max_messages=20)
             context = ""
@@ -313,8 +321,7 @@ async def chat(user_query: str, agent: str):
                 context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
             full_query = f"{context}\n" 
             full_query += f"User Input: {user_input}"
-            print("Full Query:")
-            print(full_query)
+
             # Add user message to database
             await db_manager.add_message(
                 session_id=session_id,
@@ -322,9 +329,18 @@ async def chat(user_query: str, agent: str):
                 content=user_input,
                 meta=None
             )
-            # Execute agent with timing
+            # Show user message in a panel
+            user_panel = Panel(
+                Align.left(f"[bold green]You:[/bold green] {user_input}"),
+                style="green",
+                title=f"{datetime.now():%H:%M:%S}",
+                border_style="green"
+            )
+            console.print(user_panel)
+            # Execute agent with timing and spinner
             start_time = time.time()
-            response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
+            with console.status("[bold blue]Assistant is thinking...[/bold blue]", spinner="dots"):
+                response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
             execution_time_ms = int((time.time() - start_time) * 1000)
             # Add agent session to database
             await db_manager.add_agent_session(
@@ -346,12 +362,19 @@ async def chat(user_query: str, agent: str):
                 tool_calls=getattr(response, 'tool_calls', None),
                 meta=None
             )
-            console.print(f"[bold blue]Assistant:[/bold blue] {response.response}")
+            # Show assistant response as markdown in a panel
+            assistant_panel = Panel(
+                Markdown(response.response),
+                style="blue",
+                title=f"{agent_instance.name} [{datetime.now():%H:%M:%S}]",
+                border_style="blue"
+            )
+            console.print(assistant_panel)
         except (KeyboardInterrupt, EOFError):
-            console.print("\n[bold yellow]Goodbye![/bold yellow]")
+            console.print(Panel("\n[bold yellow]Goodbye![/bold yellow]", style="yellow"))
             break
         except Exception as e:
-            console.print(f"[bold red]Error:[/bold red] {str(e)}")
+            console.print(Panel(f"[bold red]Error:[/bold red] {str(e)}", style="red"))
             # Log error to database
             await db_manager.add_agent_session(
                 session_id=session_id,

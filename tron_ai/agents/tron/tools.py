@@ -2,9 +2,10 @@ from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.google.agent import GoogleAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
 
-from tron_ai.utils.llm.LLMClient import LLMClient
-from tron_ai.models.config import LLMClientConfig
-from adalflow import OpenAIClient
+from tron_ai.utils.llm.LLMClient import get_llm_client
+from tron_ai.executors.swarm.models import SwarmState
+from tron_ai.executors.base import ExecutorConfig
+from tron_ai.exceptions import ExecutionError
 import logging
 import uuid
 import inspect
@@ -69,9 +70,6 @@ class TronTools:
                 - 'status': 'success' or 'error'
         """
         from tron_ai.executors.swarm.executor import SwarmExecutor
-        from tron_ai.executors.swarm.models import SwarmState
-        from tron_ai.executors.base import ExecutorConfig
-        from tron_ai.exceptions import ExecutionError
         
         # Initialize context if None
         if context is None:
@@ -105,14 +103,7 @@ class TronTools:
         # Now context['root_id'] is always correct for sub-calls
         
         # Create LLM client for swarm execution
-        llm_client = LLMClient(
-            client=OpenAIClient(),
-            config=LLMClientConfig(
-                model_name="gpt-4o", 
-                json_output=True, 
-                logging=True
-            ),
-        )
+        llm_client = get_llm_client(json_output=True, logging=True)
 
         # Create executor configuration
         config = ExecutorConfig(client=llm_client, logging=True)

@@ -3,10 +3,9 @@
 from datetime import datetime
 from typing import Optional, List
 from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey, Boolean, JSON
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy.sql import func
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ConfigDict
 
 # Create declarative base for SQLAlchemy models
 Base = declarative_base()
@@ -41,7 +40,6 @@ class Message(Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print(f"[DEBUG] Message.tool_calls: {kwargs.get('tool_calls')}")
 
 class AgentSession(Base):
     __tablename__ = "agent_sessions"
@@ -60,7 +58,6 @@ class AgentSession(Base):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        print(f"[DEBUG] AgentSession.tool_calls: {kwargs.get('tool_calls')}")
 
 # Pydantic models for API responses
 class ConversationResponse(BaseModel):
@@ -75,8 +72,7 @@ class ConversationResponse(BaseModel):
     meta: Optional[dict] = None
     root_id: Optional[str] = None
     message_count: int = Field(default=0, description="Number of messages in conversation")
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MessageResponse(BaseModel):
     id: int
@@ -88,8 +84,7 @@ class MessageResponse(BaseModel):
     tool_calls: Optional[List[dict]] = None
     created_at: datetime
     meta: Optional[dict] = None
-    class Config:
-        from_attributes = True
+    model_config = ConfigDict(from_attributes=True)
 
 class AgentSessionResponse(BaseModel):
     id: int
@@ -103,5 +98,4 @@ class AgentSessionResponse(BaseModel):
     error_message: Optional[str] = None
     created_at: datetime
     meta: Optional[dict] = None
-    class Config:
-        from_attributes = True 
+    model_config = ConfigDict(from_attributes=True) 

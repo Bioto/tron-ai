@@ -104,8 +104,7 @@ class AgentExecutorResponse(BasePromptResponse):
     )
     response: str = Field(
         default="",
-        description="Response from the agent",
-        required=True
+        description="Response from the agent"
     )
     
 class AgentExecutorResults(BaseModel):

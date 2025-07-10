@@ -1,6 +1,5 @@
 import uvicorn
 import httpx
-from adalflow import OpenAIClient
 from a2a.server.request_handlers import DefaultRequestHandler
 from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
 from a2a.server.apps import A2AStarletteApplication
@@ -10,7 +9,7 @@ from tron_ai.models.prompts import Prompt
 from tron_ai.executors.agent import AgentExecutor
 from tron_ai.models.agent import Agent
 from tron_ai.executors.base import ExecutorConfig
-from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.utils.llm.LLMClient import get_llm_client
 from tron_ai.modules.a2a.executor import TronA2AExecutor
 
 
@@ -31,13 +30,7 @@ simple_agent = Agent(
     ),
 )
 
-config = ExecutorConfig(client=LLMClient(
-    client=OpenAIClient(),
-    config=LLMClientConfig(
-        model_name="gpt-4o",
-        json_output=True,
-    ),
-), logging=False)
+config = ExecutorConfig(client=get_llm_client(json_output=True), logging=False)
 
 executor = AgentExecutor(
     config=config,

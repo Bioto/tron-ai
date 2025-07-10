@@ -5,7 +5,7 @@ import pprint
 from datetime import datetime, timedelta
 
 # Third-party imports
-from adalflow import Component, Generator, ModelClient
+from adalflow import Component, Generator, ModelClient, OpenAIClient
 from adalflow.core.tool_manager import ToolManager
 from adalflow.core.types import Function, FunctionOutput
 import pydantic
@@ -261,7 +261,6 @@ class LLMClient(Component):
         if not tool_results:
             return query
 
-        print("tool_results1", tool_results)
         logger.debug(f"Formatting query with {len(tool_results)} tool results")
         
         formatted_query = query + "\n\n<PREVIOUS_TOOL_RESULTS>\n"
@@ -278,8 +277,7 @@ class LLMClient(Component):
             # while still allowing reasonably sized responses (e.g., lists of 20+ items)
             for i, result in enumerate(successful_results):
                 output_str = str(result.output)
-                print("output_str", output_str)
-                print(f"Tool result {i+1}: {result.name}, output length: {len(output_str)}")
+                
                 if len(output_str) > 10000:
                     output_str = f"Output truncated: {output_str[:10000]}..."
                     logger.warning(f"Tool result {i+1} was truncated from {len(str(result.output))} to 10000 chars")
@@ -332,11 +330,7 @@ class LLMClient(Component):
         results = []
 
         for i, tool_call in enumerate(tool_calls):
-            try:
-                # Use from_dict to create Function object
-                print("NICK===")
-                print("tool_call", tool_call)
-                
+            try:               
                 # Normalize tool_call to ensure kwargs are properly separated
                 normalized_tool_call = tool_call.copy()
                 
@@ -449,11 +443,10 @@ class LLMClient(Component):
         return results
 
     def _supports_tool_calls(self, obj: Any) -> bool:
-        """Check if an object's class supports the tool_calls field."""
+        """Check if a Pydantic model supports a 'tool_calls' field."""
         return (
-            hasattr(obj, '__dict__') and 
-            hasattr(obj.__class__, '__fields__') and 
-            'tool_calls' in obj.__class__.__fields__
+            isinstance(obj, pydantic.BaseModel) and
+            'tool_calls' in obj.__class__.model_fields
         )
 
     def _execute_with_tools(
@@ -502,7 +495,6 @@ class LLMClient(Component):
         retry_count = 0
         all_tool_call_results = []
         current_query = user_query
-        last_error = None
 
         # Track whether we've made progress to avoid redundant retries
         last_successful_tool_count = 0
@@ -808,6 +800,35 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
         return None
 
     def _cache_response(self, key: str, response: Any) -> None:
-        """Cache a response with a timestamp."""
-        self._log(f"Caching response for key: {key}")
+        """Cache the response with a TTL."""
         self._response_cache[key] = (response, datetime.now())
+
+
+def get_llm_client(
+    model_name: str = "gpt-4o",
+    json_output: bool = False,
+    logging: bool = False,
+    client: Optional[ModelClient] = None,
+) -> "LLMClient":
+    """
+    Factory function to get an LLMClient instance.
+
+    Args:
+        model_name (str, optional): The model name to use. Defaults to "gpt-4o".
+        json_output (bool, optional): Whether to expect JSON output. Defaults to False.
+        logging (bool, optional): Whether to enable logging. Defaults to False.
+        client (Optional[ModelClient], optional): An existing ModelClient instance.
+                                                   If None, a new OpenAIClient will be created.
+                                                   Defaults to None.
+
+    Returns:
+        LLMClient: An instance of the LLM client.
+    """
+    if client is None:
+        client = OpenAIClient()
+
+    config = LLMClientConfig(
+        model_name=model_name, json_output=json_output, logging=logging
+    )
+
+    return LLMClient(client=client, config=config)

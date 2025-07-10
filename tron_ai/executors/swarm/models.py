@@ -130,8 +130,7 @@ class SwarmResults(PromptMeta, BaseModel):
 
     tasks: List[Task] = Field(
         description="The list of tasks that need to be completed.", 
-        default=[], 
-        required=True
+        default=[]
     )
 
     tool_calls: Optional[List[ToolCall]] = Field(

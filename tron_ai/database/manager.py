@@ -2,7 +2,7 @@
 
 import asyncio
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
@@ -110,7 +110,7 @@ class DatabaseManager:
                 conversation.is_active = is_active
             if meta is not None:
                 conversation.meta = meta
-            conversation.updated_at = datetime.utcnow()
+            conversation.updated_at = datetime.now(timezone.utc)
             return ConversationResponse.model_validate(conversation)
 
     # Message Management
@@ -150,7 +150,7 @@ class DatabaseManager:
                 meta=meta
             )
             session.add(message)
-            conversation.updated_at = datetime.utcnow()
+            conversation.updated_at = datetime.now(timezone.utc)
             await session.flush()
             return MessageResponse.model_validate(message)
 
@@ -219,7 +219,7 @@ class DatabaseManager:
     # Analytics and Statistics
     async def get_conversation_stats(self, user_id: Optional[str] = None, agent_name: Optional[str] = None, days: int = 30) -> Dict[str, Any]:
         async with self.get_session() as session:
-            cutoff_date = datetime.utcnow() - timedelta(days=days)
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             conv_stmt = select(Conversation).where(Conversation.created_at >= cutoff_date)
             msg_stmt = select(Message).join(Conversation).where(Conversation.created_at >= cutoff_date)
             session_stmt = select(AgentSession).join(Conversation).where(Conversation.created_at >= cutoff_date)
@@ -250,13 +250,9 @@ class DatabaseManager:
 
     # Cleanup and Maintenance
     async def cleanup_old_conversations(self, days: int = 90) -> int:
-        cutoff_date = datetime.utcnow() - timedelta(days=days)
+        """Deletes conversations and their related messages/sessions older than `days`."""
         async with self.get_session() as session:
-            stmt = delete(Conversation).where(
-                and_(
-                    Conversation.created_at < cutoff_date,
-                    Conversation.is_active == False
-                )
-            )
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            stmt = delete(Conversation).where(Conversation.updated_at < cutoff_date)
             result = await session.execute(stmt)
             return result.rowcount 
