@@ -24,6 +24,7 @@ import warnings
 from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable
+from tron_ai.agents.notion.agent import NotionAgent
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -276,6 +277,8 @@ async def chat(user_query: str, agent: str):
         agent_instance = SSHAgent()
     elif agent == "todoist":
         agent_instance = TodoistAgent()
+    elif agent == "notion":
+        agent_instance = NotionAgent()
     else:
         agent_instance = TronAgent()
         

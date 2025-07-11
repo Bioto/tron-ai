@@ -169,7 +169,6 @@ class LLMClient(Component):
             } | prompt_kwargs
         )
 
-        # try:
         response = system_prompt.output_format(**from_json(results.raw_response))
         self._log("Successfully parsed response")
         # Ensure tool_calls is always attached only if the model supports it
@@ -177,13 +176,6 @@ class LLMClient(Component):
             if not hasattr(response, 'tool_calls') or response.tool_calls is None:
                 response.tool_calls = []
         return response
-        # except Exception as e:
-        #     self._log(f"Error parsing response: {str(e)}")
-        #     raise LLMResponseError(
-        #         "Failed to parse LLM response",
-        #         raw_response=results.raw_response,
-        #         expected_format=str(system_prompt.output_format.model_json_schema())
-        #     )
 
     def fcall(
         self,
