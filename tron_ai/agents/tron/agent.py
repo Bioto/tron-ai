@@ -1,9 +1,15 @@
+import sys
+
 from datetime import datetime
 from typing import Callable
+from tron_ai.agents.google.agent import GoogleAgent
+from tron_ai.agents.ssh.agent import SSHAgent
+from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.agents.tron.tools import TronTools
-from tron_ai.models.agent import Agent
+from tron_ai.models.agent import Agent, MissingEnvironmentVariable
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from adalflow.core.tool_manager import ToolManager
+from rich.console import Console
 
 todays_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -280,6 +286,16 @@ Example for email:
 Remember: You are the orchestrator. The swarm is your execution layer. Use it for ALL actions.
 """
 
+try:
+    TronTools._agents = [
+        SSHAgent(),
+        TodoistAgent(),
+        GoogleAgent(),
+    ]
+except MissingEnvironmentVariable as e:
+    Console().print(f"[bold red]Missing environment variable:[/bold red] {e}")
+    sys.exit(1)
+    
 class TronAgent(Agent):
     def __init__(self, tools: list[Callable] = []):
         super().__init__(
@@ -292,9 +308,9 @@ class TronAgent(Agent):
             tool_manager=ToolManager(
                 tools=[
                     TronTools.execute_on_swarm,
-                    # TronTools.query_memory,
                     *tools
                 ]
-            )
+            ),
+            required_env_vars=["OPENAI_API_KEY"]
         )
         

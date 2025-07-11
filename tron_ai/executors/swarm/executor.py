@@ -2,7 +2,6 @@ from .tools import SwarmTools
 from .models import SwarmState
 from tron_ai.utils.graph.graph import StateGraph
 from tron_ai.executors.base import Executor
-from tron_ai.exceptions import ExecutionError
 
 def build_swarm_graph(tools: SwarmTools) -> StateGraph:
     """Constructs the state graph for the task delegation workflow.
@@ -93,18 +92,18 @@ class SwarmExecutor(Executor):
             ExecutionError: If any step in the execution fails
         """
         self.logger.info(f"Starting execution for query: {user_query}")
-        try:
-            graph = build_swarm_graph(self.tools)
-            state = self.state.model_copy(update={
-                "user_query": user_query,
-                "agents": self.state.agents
-            })
-            for name, func in graph.nodes.items():
-                async def wrapper(s, func=func, name=name):
-                    return await func(s)
-                graph.nodes[name] = wrapper
-            result = await graph.run(initial_state=state)
-            return result
-        except ExecutionError as e:
-            self.logger.error(f"Execution failed: {str(e)}")
-            raise
+        # try:
+        graph = build_swarm_graph(self.tools)
+        state = self.state.model_copy(update={
+            "user_query": user_query,
+            "agents": self.state.agents
+        })
+        for name, func in graph.nodes.items():
+            async def wrapper(s, func=func, name=name):
+                return await func(s)
+            graph.nodes[name] = wrapper
+        result = await graph.run(initial_state=state)
+        return result
+        # except ExecutionError as e:
+        #     self.logger.error(f"Execution failed: {str(e)}")
+        #     raise

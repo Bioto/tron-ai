@@ -23,6 +23,7 @@ from mem0.configs.base import MemoryConfig, VectorStoreConfig
 import warnings
 from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
+from tron_ai.models.agent import MissingEnvironmentVariable
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")

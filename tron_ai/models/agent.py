@@ -1,8 +1,12 @@
+import os
 from typing import Dict, List, Optional
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 from tron_ai.models.prompts import Prompt, BasePromptResponse
 from a2a.types import AgentCard, AgentCapabilities, AgentSkill
 from adalflow.core.tool_manager import ToolManager
+
+class MissingEnvironmentVariable(Exception):
+    pass
 
 
 class Agent(BaseModel):
@@ -32,6 +36,15 @@ class Agent(BaseModel):
     prompt: Prompt
 
     tool_manager: Optional[ToolManager] = None
+    
+    required_env_vars: List[str] = Field(default_factory=list)
+    
+    @model_validator(mode='after')
+    def validate_environment_variables(self) -> 'Agent':
+        for env_var in self.required_env_vars:
+            if env_var not in os.environ:
+                raise MissingEnvironmentVariable(f"Environment variable {env_var} is required")
+        return self
 
     @property
     def full_description(self):

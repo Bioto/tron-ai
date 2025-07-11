@@ -38,7 +38,6 @@ dependencies = [
     "sqlalchemy>=2.0.0",
     "aiosqlite>=0.20.0",
     "alembic>=1.13.0",
-    "pydantic-ai[logfire]>=0.2.16",
     "pydantic-ai-slim[openai]>=0.2.16",
     "pyinstrument>=5.0.3",
 ]

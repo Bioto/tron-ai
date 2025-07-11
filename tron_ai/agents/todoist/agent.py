@@ -168,5 +168,6 @@ class TodoistAgent(Agent):
             ),
             tool_manager=ToolManager(
                 tools=[getattr(TodoistTools, attr) for attr in dir(TodoistTools) if callable(getattr(TodoistTools, attr)) and not attr.startswith('_')]
-            )
+            ),
+            required_env_vars=["TODOIST_API_TOKEN"]
         ) 

@@ -1,6 +1,7 @@
 from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.google.agent import GoogleAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
+from tron_ai.models.agent import MissingEnvironmentVariable, Agent
 
 from tron_ai.utils.llm.LLMClient import get_llm_client
 from tron_ai.executors.swarm.models import SwarmState
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class TronTools:
+    _agents: list[Agent] = []
+    
     @staticmethod
     def query_memory(query: str) -> str:
         """
@@ -113,11 +116,7 @@ class TronTools:
             session_id=session_id,
             root_id=root_id,
             user_query=query,
-            agents=[
-                SSHAgent(),
-                TodoistAgent(),
-                GoogleAgent(),
-            ]
+            agents=TronTools._agents
         )
         
         # Create and execute swarm executor
@@ -148,6 +147,10 @@ class TronTools:
                 "task_report": task_report,
                 "status": "success"
             }
+        except MissingEnvironmentVariable:
+            print("missing environment variable")
+            # Re-raise environment variable errors to crash the CLI
+            raise
         except Exception as e:
             logger.error(f"Error in execute_on_swarm: {str(e)}")
             return {
