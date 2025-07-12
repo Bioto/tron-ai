@@ -1,5 +1,6 @@
 # Standard library imports
 from pydantic import BaseModel
+import pprint
 
 # Local imports
 from tron_ai.executors.base import Executor
@@ -18,23 +19,62 @@ class AgentExecutor(Executor):
     compatibility with the base interface.
     """
     
-    async def execute(self, user_query: str, agent: Agent, prompt_kwargs: dict = {}) -> BaseModel:
-        """Execute an agent with the given user query.
+    async def execute(self, user_query: str, agent: Agent, prompt_kwargs: dict = {}, process_follow_ups: bool = True) -> dict:
+        """Execute an agent with the given user query and handle follow-up queries.
         
         Args:
             user_query: The user's input query to process
             agent: The agent instance to execute
             prompt_kwargs: Additional keyword arguments to pass to the prompt
-            
+        
         Returns:
-            BaseModel: The processed response from the agent execution
-            
-        Raises:
-            ExecutionError: If the agent execution fails
+            dict: The combined response from the agent execution and all follow-ups
         """
-        return self.client.fcall(
+        # 1. Get the initial response
+        print(f"[AgentExecutor] Executing initial agent call with user_query: {user_query}")
+        initial_response = self.client.fcall(
             user_query=user_query,
             system_prompt=agent.prompt,
             tool_manager=agent.tool_manager,
             prompt_kwargs=prompt_kwargs
         )
+        print(f"[AgentExecutor] Initial response: {initial_response}")
+        follow_up_key = getattr(agent, "follow_up_querys_key", None)
+        follow_up_queries = getattr(initial_response, follow_up_key, []) if follow_up_key else []
+        print(f"[AgentExecutor] Follow-up queries: {follow_up_queries}")
+        results = [initial_response]
+    
+        if process_follow_ups:
+            for query in follow_up_queries:
+                print(f"[AgentExecutor] Executing follow-up query: {query}")
+                follow_up_result = await self.execute(f"Context: {initial_response.generated_output}\n\nFollow-up query: {query}", agent, prompt_kwargs, process_follow_ups=False)
+                results.append(follow_up_result)
+                
+        if len(results) == 1:
+            return results[0]
+        
+        combined_context = self.combine_responses(results)
+        print(f"[AgentExecutor] Combined responses: {len(combined_context)}")
+        
+        combined_response = self.client.fcall(
+            user_query=f"Generate a detailed technical report based on the following context, analyzing from multiple angles with in-depth technical details, methodologies, and insights:\n\n{combined_context}\n\nThe original user query is: {user_query}",
+            system_prompt=agent.prompt,
+            tool_manager=agent.tool_manager,
+            prompt_kwargs=prompt_kwargs
+        )
+        print(f"[AgentExecutor] Final combined response: {combined_response}")
+        return combined_response
+
+    def combine_responses(self, responses: list) -> dict:
+        """Combine a list of responses into a single dict for context passing."""
+        combined = {}
+        for idx, response in enumerate(responses):
+            # If response is a pydantic model, convert to dict
+            if hasattr(response, 'model_dump'):
+                response_dict = response.model_dump()
+            elif isinstance(response, dict):
+                response_dict = response
+            else:
+                response_dict = {f"response_{idx}": response}
+            combined[f"response_{idx}"] = response_dict
+        return combined

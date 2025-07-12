@@ -39,6 +39,8 @@ class Agent(BaseModel):
     
     required_env_vars: List[str] = Field(default_factory=list)
     
+    follow_up_querys_key: Optional[str] = None
+    
     @model_validator(mode='after')
     def validate_environment_variables(self) -> 'Agent':
         for env_var in self.required_env_vars:

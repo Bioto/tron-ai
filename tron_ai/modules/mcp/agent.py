@@ -192,6 +192,7 @@ class Agent(TronAgent):
                         except Exception as e:
                             logger.error(f"Error executing function {function_name}: {str(e)}")
                             return f"Error executing function: {str(e)}"
+                        
                     def create_tool_function(
                         function_name,
                         tool_name,

@@ -25,6 +25,7 @@ from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable
 from tron_ai.agents.notion.agent import NotionAgent
+from tron_ai.agents.marketer.agent import MarketerAgent
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -248,7 +249,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 @cli.command()
 @click.argument("user_query")
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketer"]))
 async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
     import uuid
@@ -279,6 +280,8 @@ async def chat(user_query: str, agent: str):
         agent_instance = TodoistAgent()
     elif agent == "notion":
         agent_instance = NotionAgent()
+    elif agent == "marketer":
+        agent_instance = MarketerAgent()
     else:
         agent_instance = TronAgent()
         
@@ -347,28 +350,36 @@ async def chat(user_query: str, agent: str):
                 response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
             execution_time_ms = int((time.time() - start_time) * 1000)
             # Add agent session to database
+            agent_response_str = json.dumps(response.generated_output) if isinstance(response.generated_output, dict) else response.generated_output
             await db_manager.add_agent_session(
                 session_id=session_id,
                 agent_name=agent_instance.name,
                 user_query=user_input,
-                agent_response=response.response,
+                agent_response=agent_response_str,
                 tool_calls=getattr(response, 'tool_calls', None),
                 execution_time_ms=execution_time_ms,
                 success=True,
                 meta=None
             )
             # Add assistant message to database
+            content = getattr(response, 'generated_output', None)
+            if not content:
+                content = getattr(response, 'response', "") if response is not None else ""
+            else:
+                content = json.dumps(content) if isinstance(content, dict) else str(content)
             await db_manager.add_message(
                 session_id=session_id,
                 role="assistant",
-                content=response.response,
+                content=content,
                 agent_name=agent_instance.name,
                 tool_calls=getattr(response, 'tool_calls', None),
                 meta=None
             )
-            # Show assistant response as markdown in a panel
+            
+            md_content = response.generated_output
+
             assistant_panel = Panel(
-                Markdown(response.response),
+                Markdown(md_content),
                 style="blue",
                 title=f"{agent_instance.name} [{datetime.now():%H:%M:%S}]",
                 border_style="blue"

@@ -206,18 +206,14 @@ class LLMClient(Component):
                 if not hasattr(result, 'tool_calls') or result.tool_calls is None:
                     result.tool_calls = []
             return result
-        try:    
-            # Execute with tool management
-            return self._execute_with_tools(
-                generator,
-                system_prompt,
-                user_query,
-                tool_manager,
-                prompt_kwargs
-            )
-        except Exception as e:
-            logger.error(f"Error in fcall: {str(e)}")
-            raise e
+        # Execute with tool management
+        return self._execute_with_tools(
+            generator,
+            system_prompt,
+            user_query,
+            tool_manager,
+            prompt_kwargs
+        )
 
     def _prepare_tool_prompt_kwargs(
         self, tool_manager: ToolManager, output_data_class: type
@@ -270,9 +266,6 @@ class LLMClient(Component):
             for i, result in enumerate(successful_results):
                 output_str = str(result.output)
                 
-                if len(output_str) > 10000:
-                    output_str = f"Output truncated: {output_str[:10000]}..."
-                    logger.warning(f"Tool result {i+1} was truncated from {len(str(result.output))} to 10000 chars")
                 formatted_query += f"Tool: {result.name}\n"
                 formatted_query += f"Result: {output_str}\n"
                 formatted_query += "---\n"
@@ -322,68 +315,35 @@ class LLMClient(Component):
         results = []
 
         for i, tool_call in enumerate(tool_calls):
-            try:               
-                # Normalize tool_call to ensure kwargs are properly separated
-                normalized_tool_call = tool_call.copy()
+            # Normalize tool_call to ensure kwargs are properly separated
+            normalized_tool_call = tool_call.copy()
+            
+            # If args contains a dict, move it to kwargs
+            if 'args' in normalized_tool_call and isinstance(normalized_tool_call['args'], dict):
+                normalized_tool_call['kwargs'] = normalized_tool_call['args']
+                normalized_tool_call['args'] = ()
+            
+            tool = Function.from_dict(normalized_tool_call)
+            logger.debug(f"Tool: {tool!r}")
+            logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
+            
+            # Execute tool using the manager
+            tool_result = tool_manager.execute_func(tool)
+            logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
+            
+            # Log the actual result content
+            if hasattr(tool_result, 'output'):
+                output_str = str(tool_result.output)
+                logger.info(f"[TOOL_EXECUTION] Tool {tool.name} output length: {len(output_str)} characters")
+                logger.debug(f"[TOOL_EXECUTION] Tool {tool.name} output preview: {output_str[:500]}...")
                 
-                # If args contains a dict, move it to kwargs
-                if 'args' in normalized_tool_call and isinstance(normalized_tool_call['args'], dict):
-                    normalized_tool_call['kwargs'] = normalized_tool_call['args']
-                    normalized_tool_call['args'] = ()
-                
-                tool = Function.from_dict(normalized_tool_call)
-                logger.debug(f"Tool: {tool!r}")
-                logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-                
-                # Execute tool using the manager
-                tool_result = tool_manager.execute_func(tool)
-                logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
-                
-                # Log the actual result content
-                if hasattr(tool_result, 'output'):
-                    output_str = str(tool_result.output)
-                    logger.info(f"[TOOL_EXECUTION] Tool {tool.name} output length: {len(output_str)} characters")
-                    logger.debug(f"[TOOL_EXECUTION] Tool {tool.name} output preview: {output_str[:500]}...")
-                    
-                    # If it's a list, log the count
-                    if isinstance(tool_result.output, list):
-                        logger.info(f"[TOOL_EXECUTION] Tool {tool.name} returned a list with {len(tool_result.output)} items")
-                        for idx, item in enumerate(tool_result.output[:5]):  # Log first 5 items
-                            logger.debug(f"[TOOL_EXECUTION]   Item {idx+1}: {str(item)[:100]}...")
+                # If it's a list, log the count
+                if isinstance(tool_result.output, list):
+                    logger.info(f"[TOOL_EXECUTION] Tool {tool.name} returned a list with {len(tool_result.output)} items")
+                    for idx, item in enumerate(tool_result.output[:5]):  # Log first 5 items
+                        logger.debug(f"[TOOL_EXECUTION]   Item {idx+1}: {str(item)[:100]}...")
 
-                results.append(tool_result)
-            except Exception as e:
-                error_msg = str(e)
-                # Only treat as error if it's not just missing 'tool_calls' on a valid result
-                if 'object has no field "tool_calls"' in error_msg and tool_call.get('name') == 'execute_on_swarm':
-                    logger.warning(f"Ignoring missing tool_calls on orchestrator result for {tool_call.get('name')}")
-                    continue
-                logger.error(f"Error executing tool {tool_call.get('name', 'unknown')}: {error_msg}")
-                
-                # Check if it's a parameter error (signature mismatch, missing required params, etc)
-                is_param_error = any(keyword in error_msg.lower() for keyword in [
-                    'parameter', 'argument', 'signature', 'kwargs', 'missing', 
-                    'required', 'unexpected', 'positional', 'keyword-only'
-                ])
-                
-                # Create FunctionOutput with error information
-                error_output = FunctionOutput(
-                    name=tool_call.get('name', 'unknown'),
-                    input=tool_call,
-                    output=None,
-                    error=error_msg
-                )
-                results.append(error_output)
-                
-                # If it's not a parameter error, we might want to raise it
-                if not is_param_error:
-                    logger.warning(f"Non-parameter error occurred: {error_msg}")
-                    # Optionally raise for non-parameter errors
-                    # raise ToolExecutionError(
-                    #     "Failed to execute tool",
-                    #     tool_name=tool_call.get('name', 'unknown'),
-                    #     error=e
-                    # )
+            results.append(tool_result)
         return results
 
     def _add_unique_results(self, all_results: list, new_results: list) -> list:
@@ -516,66 +476,31 @@ class LLMClient(Component):
             )
             
             # Make LLM call
-            try:
-                logger.info(f"[LLM_RETRY] Making LLM call with {len(all_tool_call_results)} previous tool results")
-                results = generator(
-                    prompt_kwargs={
-                        "_template": system_prompt.build(),
-                        "_user_query": formatted_query,
-                    }
-                    | tool_prompt_kwargs | prompt_kwargs
-                )
-                dataset = orjson.loads(results.data)
-                logger.debug(f"[LLM_RETRY] LLM response: {dataset}")
-
-            except Exception as e:
-                logger.error(f"Error making LLM call: {str(e)}")
-                retry_count += 1
-                continue
-
+            logger.info(f"[LLM_RETRY] Making LLM call with {len(all_tool_call_results)} previous tool results")
+            results = generator(
+                prompt_kwargs={
+                    "_template": system_prompt.build(),
+                    "_user_query": formatted_query,
+                }
+                | tool_prompt_kwargs | prompt_kwargs
+            )
+            dataset = orjson.loads(results.data)
+            logger.debug(f"[LLM_RETRY] LLM response: {dataset}")
 
             # Process tool calls
-            try:
-                current_tool_calls = dataset.get("tool_calls", [])
+            current_tool_calls = dataset.get("tool_calls", [])
+            
+            # Check if we're repeating the same tool calls
+            if current_tool_calls == previous_tool_calls and retry_count > 0:
+                self._log("LLM is repeating the same tool calls. Breaking loop.")
+                logger.info(f"[LLM_RETRY] Duplicate tool calls detected: {current_tool_calls}")
+                logger.info(f"[LLM_RETRY] Dataset keys: {list(dataset.keys())}")
+                logger.info(f"[LLM_RETRY] Has response field: {'response' in dataset}")
                 
-                # Check if we're repeating the same tool calls
-                if current_tool_calls == previous_tool_calls and retry_count > 0:
-                    self._log("LLM is repeating the same tool calls. Breaking loop.")
-                    logger.info(f"[LLM_RETRY] Duplicate tool calls detected: {current_tool_calls}")
-                    logger.info(f"[LLM_RETRY] Dataset keys: {list(dataset.keys())}")
-                    logger.info(f"[LLM_RETRY] Has response field: {'response' in dataset}")
-                    
-                    # Check if the LLM provided a final response
-                    if "response" in dataset:
-                        self._log("LLM provided final response with duplicates. Returning response.")
-                        logger.info(f"[LLM_RETRY] Returning final response: {dataset.get('response', 'N/A')}")
-                        final_response = system_prompt.output_format(**dataset)
-                        # Ensure tool_calls is always attached only if the model supports it
-                        if self._supports_tool_calls(final_response):
-                            final_response.tool_calls = []
-                            for r in all_tool_call_results:
-                                tool_call_entry = {
-                                    "name": getattr(r, 'name', None),
-                                    "args": getattr(r, 'args', None),
-                                    "kwargs": getattr(r, 'kwargs', None),
-                                    "error": getattr(r, 'error', None)
-                                }
-                                # Prefer tool_calls if present, else output
-                                if hasattr(r, 'tool_calls'):
-                                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                                else:
-                                    tool_call_entry["output"] = getattr(r, 'output', None)
-                                final_response.tool_calls.append(tool_call_entry)
-                        self._cache_response(cache_key, final_response)
-                        return final_response
-                    # Otherwise, break to make final direct call
-                    self._log("No response in duplicate detection. Breaking to make final direct call.")
-                    logger.info(f"[LLM_RETRY] Breaking loop - no response field in dataset")
-                    break
-                
-                # Check if LLM provided a final response without tool calls (early termination)
-                if "response" in dataset and not current_tool_calls:
-                    self._log("LLM provided final response without tool calls. Returning response.")
+                # Check if the LLM provided a final response
+                if "response" in dataset:
+                    self._log("LLM provided final response with duplicates. Returning response.")
+                    logger.info(f"[LLM_RETRY] Returning final response: {dataset.get('response', 'N/A')}")
                     final_response = system_prompt.output_format(**dataset)
                     # Ensure tool_calls is always attached only if the model supports it
                     if self._supports_tool_calls(final_response):
@@ -587,6 +512,7 @@ class LLMClient(Component):
                                 "kwargs": getattr(r, 'kwargs', None),
                                 "error": getattr(r, 'error', None)
                             }
+                            # Prefer tool_calls if present, else output
                             if hasattr(r, 'tool_calls'):
                                 tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
                             else:
@@ -594,21 +520,44 @@ class LLMClient(Component):
                             final_response.tool_calls.append(tool_call_entry)
                     self._cache_response(cache_key, final_response)
                     return final_response
-                
-                previous_tool_calls = current_tool_calls
-                new_results = self._execute_tool_calls(current_tool_calls, tool_manager)
-                
-                # Check if any of the new results are errors
-                has_errors = any(hasattr(r, 'error') and r.error is not None for r in new_results)
-                if has_errors:
-                    logger.info(f"[LLM_RETRY] Tool execution resulted in errors, will retry")
-                    # Add error results to accumulated results so LLM can see them
-                    all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
-                    retry_count += 1
-                    continue  # Continue the retry loop
-                    
-            except ToolExecutionError:
-                raise  # Re-raise tool execution errors immediately
+                # Otherwise, break to make final direct call
+                self._log("No response in duplicate detection. Breaking to make final direct call.")
+                logger.info(f"[LLM_RETRY] Breaking loop - no response field in dataset")
+                break
+            
+            # Check if LLM provided a final response without tool calls (early termination)
+            if "response" in dataset and not current_tool_calls:
+                self._log("LLM provided final response without tool calls. Returning response.")
+                final_response = system_prompt.output_format(**dataset)
+                # Ensure tool_calls is always attached only if the model supports it
+                if self._supports_tool_calls(final_response):
+                    final_response.tool_calls = []
+                    for r in all_tool_call_results:
+                        tool_call_entry = {
+                            "name": getattr(r, 'name', None),
+                            "args": getattr(r, 'args', None),
+                            "kwargs": getattr(r, 'kwargs', None),
+                            "error": getattr(r, 'error', None)
+                        }
+                        if hasattr(r, 'tool_calls'):
+                            tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
+                        else:
+                            tool_call_entry["output"] = getattr(r, 'output', None)
+                        final_response.tool_calls.append(tool_call_entry)
+                self._cache_response(cache_key, final_response)
+                return final_response
+            
+            previous_tool_calls = current_tool_calls
+            new_results = self._execute_tool_calls(current_tool_calls, tool_manager)
+            
+            # Check if any of the new results are errors
+            has_errors = any(hasattr(r, 'error') and r.error is not None for r in new_results)
+            if has_errors:
+                logger.info(f"[LLM_RETRY] Tool execution resulted in errors, will retry")
+                # Add error results to accumulated results so LLM can see them
+                all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
+                retry_count += 1
+                continue  # Continue the retry loop
 
             # If there are no new tool calls to execute, we are done.
             if not new_results and not current_tool_calls:
@@ -752,7 +701,6 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
             }
         )
 
-        # try:
         response = system_prompt.output_format(**json.loads(results.data))
         self._log("Successfully processed response")
         # Attach tool_calls to the response object only if the model supports it
@@ -771,13 +719,6 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
                     tool_call_entry["output"] = getattr(r, 'output', None)
                 response.tool_calls.append(tool_call_entry)
         return response
-        # except Exception as e:
-        #     self._log(f"Error processing response: {str(e)}")
-        #     raise LLMResponseError(
-        #         "Failed to parse direct call response",
-        #         raw_response=results.data,
-        #         expected_format=str(system_prompt.output_format.model_json_schema())
-        #     )
 
     def _get_cached_response(self, key: str) -> Optional[Any]:
         """Get response from cache if not expired."""
