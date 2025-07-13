@@ -1,8 +1,11 @@
 from datetime import datetime
-from tron_ai.agents.marketer.tools import MarketerTools
+
 from tron_ai.models.agent import Agent
-from tron_ai.models.prompts import Prompt, MarketerResponse
+from tron_ai.models.prompts import Prompt
 from adalflow.core.tool_manager import ToolManager
+
+from .responses import MarketerResponse
+from .tools import MarketerTools
 
 todays_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -47,10 +50,10 @@ Always suggest next steps for implementation in the `recommendations` field.
 Do not include any information in the general response body that belongs in one of these fields.
 """
 
-class MarketerAgent(Agent):
+class MarketingStrategyAgent(Agent):
     def __init__(self):
         super().__init__(
-            name="Marketer",
+            name="Marketing Strategy",
             description="An AI agent specialized in marketing strategies and content generation for products, with a focus on AI products.",
             prompt=Prompt(
                 text=PROMPT,

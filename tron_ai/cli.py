@@ -25,7 +25,17 @@ from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable
 from tron_ai.agents.notion.agent import NotionAgent
-from tron_ai.agents.marketer.agent import MarketerAgent
+from tron_ai.agents.business import (
+    MarketerAgent,
+    HRAgent,
+    SalesAgent,
+    CustomerSuccessAgent,
+    ProductManagementAgent,
+    FinancialPlanningAgent,
+    AIEthicsAgent,
+    ContentCreationAgent,
+    CommunityRelationsAgent,
+)
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -249,7 +259,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 @cli.command()
 @click.argument("user_query")
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketer"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketer", "hr", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
 async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
     import uuid
@@ -282,6 +292,22 @@ async def chat(user_query: str, agent: str):
         agent_instance = NotionAgent()
     elif agent == "marketer":
         agent_instance = MarketerAgent()
+    elif agent == "hr":
+        agent_instance = HRAgent()
+    elif agent == "sales":
+        agent_instance = SalesAgent()
+    elif agent == "customer_success":
+        agent_instance = CustomerSuccessAgent()
+    elif agent == "product_management":
+        agent_instance = ProductManagementAgent()
+    elif agent == "financial_planning":
+        agent_instance = FinancialPlanningAgent()
+    elif agent == "ai_ethics":
+        agent_instance = AIEthicsAgent()
+    elif agent == "content_creation":
+        agent_instance = ContentCreationAgent()
+    elif agent == "community_relations":
+        agent_instance = CommunityRelationsAgent()
     else:
         agent_instance = TronAgent()
         
@@ -349,8 +375,16 @@ async def chat(user_query: str, agent: str):
             with console.status("[bold blue]Assistant is thinking...[/bold blue]", spinner="dots"):
                 response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
             execution_time_ms = int((time.time() - start_time) * 1000)
+            
+            print(response)
             # Add agent session to database
-            agent_response_str = json.dumps(response.generated_output) if isinstance(response.generated_output, dict) else response.generated_output
+            if hasattr(response, "response") and response.response is not None:
+                agent_response_val = response.response
+            elif hasattr(response, "generated_output"):
+                agent_response_val = response.generated_output
+            else:
+                agent_response_val = ""
+            agent_response_str = json.dumps(agent_response_val) if isinstance(agent_response_val, dict) else str(agent_response_val)
             await db_manager.add_agent_session(
                 session_id=session_id,
                 agent_name=agent_instance.name,
@@ -362,9 +396,9 @@ async def chat(user_query: str, agent: str):
                 meta=None
             )
             # Add assistant message to database
-            content = getattr(response, 'generated_output', None)
+            content = getattr(response, 'response', None)
             if not content:
-                content = getattr(response, 'response', "") if response is not None else ""
+                content = getattr(response, 'generated_output', "") if response is not None else ""
             else:
                 content = json.dumps(content) if isinstance(content, dict) else str(content)
             await db_manager.add_message(
@@ -376,7 +410,7 @@ async def chat(user_query: str, agent: str):
                 meta=None
             )
             
-            md_content = response.generated_output
+            md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
 
             assistant_panel = Panel(
                 Markdown(md_content),
