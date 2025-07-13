@@ -24,7 +24,7 @@ class MarketerTools:
             return 'Error: PERPLEXITY_API_KEY not set in environment.'
         url = 'https://api.perplexity.ai/chat/completions'
         headers = {
-            'Authorization': f'Bearer {api_key}Ctrl + Ca',
+            'Authorization': f'Bearer {api_key}',
             'Content-Type': 'application/json',
         }
         data = {
