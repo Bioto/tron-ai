@@ -5,7 +5,7 @@ from rich.prompt import Prompt as RichPrompt
 from tron_ai.database.manager import DatabaseManager
 from tron_ai.database.config import DatabaseConfig
 
-from tron_ai.agents.google.agent import GoogleAgent
+from tron_ai.agents.productivity.google.agent import GoogleAgent
 from tron_ai.config import setup_logging
 from tron_ai.executors.agent import AgentExecutor
 from tron_ai.models.config import LLMClientConfig
@@ -21,10 +21,10 @@ from mem0 import Memory
 from mem0.memory.main import logger
 from mem0.configs.base import MemoryConfig, VectorStoreConfig
 import warnings
-from tron_ai.agents.ssh.agent import SSHAgent
-from tron_ai.agents.todoist.agent import TodoistAgent
+from tron_ai.agents.devops.ssh.agent import SSHAgent
+from tron_ai.agents.productivity.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable
-from tron_ai.agents.notion.agent import NotionAgent
+from tron_ai.agents.productivity.notion.agent import NotionAgent
 from tron_ai.agents.business import (
     MarketingStrategyAgent,
     SalesAgent,

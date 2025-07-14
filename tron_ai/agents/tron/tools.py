@@ -1,6 +1,6 @@
-from tron_ai.agents.ssh.agent import SSHAgent
-from tron_ai.agents.google.agent import GoogleAgent
-from tron_ai.agents.todoist.agent import TodoistAgent
+from tron_ai.agents.devops.ssh.agent import SSHAgent
+from tron_ai.agents.productivity.google.agent import GoogleAgent
+from tron_ai.agents.productivity.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable, Agent
 
 from tron_ai.utils.llm.LLMClient import get_llm_client

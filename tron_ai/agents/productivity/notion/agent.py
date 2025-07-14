@@ -1,5 +1,5 @@
 from datetime import datetime
-from tron_ai.agents.notion.tools import NotionTools
+from tron_ai.agents.productivity.notion.tools import NotionTools
 from tron_ai.models.agent import Agent
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from adalflow.core.tool_manager import ToolManager

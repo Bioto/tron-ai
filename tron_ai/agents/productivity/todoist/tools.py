@@ -1,7 +1,5 @@
-from typing import List, Dict, Any, Optional
-from tron_ai.agents.todoist.utils import get_todoist_client
-import json
-
+from typing import List, Dict, Any
+from tron_ai.agents.productivity.todoist.utils import get_todoist_client
 
 class TodoistTools:
     """Tools for interacting with the Todoist API."""

@@ -3,9 +3,9 @@ import sys
 from datetime import datetime
 from typing import Callable
 from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
-from tron_ai.agents.google.agent import GoogleAgent
-from tron_ai.agents.ssh.agent import SSHAgent
-from tron_ai.agents.todoist.agent import TodoistAgent
+from tron_ai.agents.productivity.google.agent import GoogleAgent
+from tron_ai.agents.devops.ssh.agent import SSHAgent
+from tron_ai.agents.productivity.todoist.agent import TodoistAgent
 from tron_ai.agents.tron.tools import TronTools
 from tron_ai.models.agent import Agent, MissingEnvironmentVariable
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse

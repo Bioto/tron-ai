@@ -1,5 +1,5 @@
 from typing import List, Dict, Any, Optional
-from tron_ai.agents.notion.utils import get_notion_client
+from tron_ai.agents.productivity.notion.utils import get_notion_client
 import json
 import logging
 
