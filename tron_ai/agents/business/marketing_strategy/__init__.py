@@ -1,3 +1,3 @@
-from .agent import Agent as MarketerAgent
+from .agent import MarketingStrategyAgent
 
-__all__ = ["MarketerAgent"]
+__all__ = ["MarketingStrategyAgent"]

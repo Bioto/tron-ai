@@ -26,8 +26,7 @@ from tron_ai.agents.todoist.agent import TodoistAgent
 from tron_ai.models.agent import MissingEnvironmentVariable
 from tron_ai.agents.notion.agent import NotionAgent
 from tron_ai.agents.business import (
-    MarketerAgent,
-    HRAgent,
+    MarketingStrategyAgent,
     SalesAgent,
     CustomerSuccessAgent,
     ProductManagementAgent,
@@ -259,7 +258,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 @cli.command()
 @click.argument("user_query")
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketer", "hr", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
 async def chat(user_query: str, agent: str):
     """Start an interactive chat session with the Tron agent."""
     import uuid
@@ -290,10 +289,8 @@ async def chat(user_query: str, agent: str):
         agent_instance = TodoistAgent()
     elif agent == "notion":
         agent_instance = NotionAgent()
-    elif agent == "marketer":
-        agent_instance = MarketerAgent()
-    elif agent == "hr":
-        agent_instance = HRAgent()
+    elif agent == "marketing_strategy":
+        agent_instance = MarketingStrategyAgent()
     elif agent == "sales":
         agent_instance = SalesAgent()
     elif agent == "customer_success":
@@ -376,7 +373,6 @@ async def chat(user_query: str, agent: str):
                 response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
             execution_time_ms = int((time.time() - start_time) * 1000)
             
-            print(response)
             # Add agent session to database
             if hasattr(response, "response") and response.response is not None:
                 agent_response_val = response.response

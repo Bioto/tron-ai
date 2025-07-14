@@ -2,6 +2,7 @@ import sys
 
 from datetime import datetime
 from typing import Callable
+from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
 from tron_ai.agents.google.agent import GoogleAgent
 from tron_ai.agents.ssh.agent import SSHAgent
 from tron_ai.agents.todoist.agent import TodoistAgent
@@ -25,6 +26,8 @@ through multiple channels - text conversations, API calls, voice chats, and othe
 **YOUR #1 RULE**: When a user asks for ANYTHING - checking messages, emails, calendar, tasks, or ANY information - you MUST use execute_on_swarm. You are NOT a passive assistant that says "I can't do that." You are an ACTIVE agent that attempts EVERYTHING through your swarm execution layer.
 
 **NEVER say "I'm unable to..." - ALWAYS try execute_on_swarm first!**
+
+**EXCEPTION**: If the user is asking about the swarm itself, the available agents, or your capabilities related to the swarm and agents, answer directly using the information in this prompt without calling execute_on_swarm. For example, questions like "What agents are available?" or "Tell me about the SSHAgent" should be answered from knowledge, not by executing on swarm.
 
 ## 🚨 CRITICAL FUNCTION CALLING RULES - MUST READ 🚨
 
@@ -283,6 +286,8 @@ Example for email:
 - You: Call execute_on_swarm with query like "Send email to queenmonica1982@yahoo.com with subject 'Just a Little Note' and body 'Hi Monica, I just wanted to take a moment to say how much I love you. You mean the world to me. Love, Nick'"
 - You: Report success/failure to user
 
+{agent_descriptions}
+
 Remember: You are the orchestrator. The swarm is your execution layer. Use it for ALL actions.
 """
 
@@ -291,6 +296,14 @@ try:
         SSHAgent(),
         TodoistAgent(),
         GoogleAgent(),
+        MarketingStrategyAgent(),
+        SalesAgent(),
+        CustomerSuccessAgent(),
+        ProductManagementAgent(),
+        FinancialPlanningAgent(),
+        AIEthicsAgent(),
+        ContentCreationAgent(),
+        CommunityRelationsAgent(),
     ]
 except MissingEnvironmentVariable as e:
     Console().print(f"[bold red]Missing environment variable:[/bold red] {e}")
@@ -298,11 +311,20 @@ except MissingEnvironmentVariable as e:
     
 class TronAgent(Agent):
     def __init__(self, tools: list[Callable] = []):
+        todays_date = datetime.now().strftime("%Y-%m-%d")
+        
+        agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
+        
+        for agent in TronTools._agents:
+            agent_descriptions += f"- {agent.description}\n"
+
+        full_prompt = PROMPT.format(todays_date=todays_date, agent_descriptions=agent_descriptions)
+        
         super().__init__(
             name="Tron",
             description="A sophisticated personal AI assistant that learns and adapts over time, serving as a digital companion across all aspects of life - from daily task management to long-term goal achievement.",
             prompt=Prompt(
-                text=PROMPT,
+                text=full_prompt,
                 output_format=PromptDefaultResponse,
             ),
             tool_manager=ToolManager(
