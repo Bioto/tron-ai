@@ -36,6 +36,7 @@ from tron_ai.agents.business import (
     CommunityRelationsAgent,
 )
 from tron_ai.agents.devops.code.agent import CodeScannerAgent
+from tron_ai.agents.devops.code.tools import CodeScannerTools
 from rich.panel import Panel
 from rich.markdown import Markdown
 
@@ -437,7 +438,9 @@ async def chat(user_query: str, agent: str):
 
 @cli.command()
 @click.argument('directory')
-async def scan_repo(directory: str):
+@click.option('--output', default=None, help='Output JSON file path for the graph.')
+@click.option('--store-neo4j', is_flag=True, help='Store the graph in Neo4j.')
+async def scan_repo(directory: str, output: str, store_neo4j: bool):
     """Scan a local repository using CodeScannerAgent."""
     console = Console()
     try:
@@ -455,9 +458,22 @@ async def scan_repo(directory: str):
                 logging=True,
             ),
         )
-        query = f"Scan the directory {directory} and build a structure map using tree-sitter to parse functions, classes, and imports. Summarize the structure without including full file contents."
+        query = f"Scan the directory {directory} and build a dependency graph using tree-sitter and NetworkX. Summarize the graph structure."
         response = await executor.execute(user_query=query, agent=agent_instance)
-        console.print(Panel(Markdown(response.response), style="blue", title="Scan Results"))
+        # Build graph directly
+        graph = CodeScannerTools.build_dependency_graph(directory=directory)
+        response_text = f"Graph built with {len(graph.nodes)} nodes and {len(graph.edges)} edges."
+        if store_neo4j:
+            store_response = CodeScannerTools.store_graph_to_neo4j(graph=graph)
+            response_text += f"\n{store_response}"
+        console.print(Panel(Markdown(response_text), style="blue", title="Scan Results"))
+        if output:
+            import json
+            from networkx.readwrite import json_graph
+            data = json_graph.node_link_data(graph)
+            with open(output, 'w') as f:
+                json.dump(data, f, indent=2)
+            console.print(f"[green]Graph saved to {output}[/green]")
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
 

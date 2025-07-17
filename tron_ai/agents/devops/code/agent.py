@@ -20,6 +20,8 @@ Today's date is {todays_date}.
 - Parse code structure with tree-sitter
 - Build structured repository maps (prefer this to reduce context size)
 - Analyze code structure without loading full contents
+- Build dependency graphs with NetworkX
+- Store graphs in Neo4j
 
 For large repos, always prefer parsing and structured maps over raw file reading to manage context efficiently.
 
@@ -41,6 +43,9 @@ class CodeScannerAgent(Agent):
                     CodeScannerTools.read_file,
                     CodeScannerTools.parse_file,  # New
                     CodeScannerTools.build_structure_map,  # New
+                    CodeScannerTools.build_dependency_graph,  # New
+                    CodeScannerTools.query_relevant_context,  # New
+                    CodeScannerTools.store_graph_to_neo4j,  # New
                 ]
             )
         ) 

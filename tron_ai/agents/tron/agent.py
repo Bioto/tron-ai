@@ -2,6 +2,8 @@ import sys
 
 from datetime import datetime
 from typing import Callable
+from tron_ai.agents.devops.code.agent import CodeScannerAgent
+from tron_ai.agents.devops.editor.agent import CodeEditorAgent
 from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
 from tron_ai.agents.productivity.google.agent import GoogleAgent
 from tron_ai.agents.devops.ssh.agent import SSHAgent
@@ -292,18 +294,22 @@ Remember: You are the orchestrator. The swarm is your execution layer. Use it fo
 """
 
 try:
+    # TronTools._agents = [
+    #     SSHAgent(),
+    #     TodoistAgent(),
+    #     GoogleAgent(),
+    #     MarketingStrategyAgent(),
+    #     SalesAgent(),
+    #     CustomerSuccessAgent(),
+    #     ProductManagementAgent(),
+    #     FinancialPlanningAgent(),
+    #     AIEthicsAgent(),
+    #     ContentCreationAgent(),
+    #     CommunityRelationsAgent(),
+    # ]
     TronTools._agents = [
-        SSHAgent(),
-        TodoistAgent(),
-        GoogleAgent(),
-        MarketingStrategyAgent(),
-        SalesAgent(),
-        CustomerSuccessAgent(),
-        ProductManagementAgent(),
-        FinancialPlanningAgent(),
-        AIEthicsAgent(),
-        ContentCreationAgent(),
-        CommunityRelationsAgent(),
+        CodeEditorAgent(),
+        CodeScannerAgent(),
     ]
 except MissingEnvironmentVariable as e:
     Console().print(f"[bold red]Missing environment variable:[/bold red] {e}")
@@ -317,7 +323,7 @@ class TronAgent(Agent):
         
         for agent in TronTools._agents:
             agent_descriptions += f"- {agent.description}\n"
-
+     
         full_prompt = PROMPT.format(todays_date=todays_date, agent_descriptions=agent_descriptions)
         
         super().__init__(

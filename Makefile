@@ -33,6 +33,7 @@ help:
 	@echo "  make ruff          - Run ruff linter"
 	@echo "  make ruff-fix      - Run ruff and auto-fix issues"
 	@echo "  make ruff-format   - Format code with ruff"
+	@echo "  make compose-up    - Start tron-compose services"
 
 # Run all tests
 .PHONY: test
@@ -157,3 +158,8 @@ ci: clean ruff test-coverage
 .PHONY: quick
 quick:
 	$(PYTEST) -x -W ignore::DeprecationWarning 
+
+# Start tron-compose services
+.PHONY: compose-up
+compose-up:
+	docker compose -f .docker/tron-compose.yml up -d 

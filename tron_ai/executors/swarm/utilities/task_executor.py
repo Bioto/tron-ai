@@ -334,21 +334,10 @@ class TaskExecutor:
                     pass
             if dep_sections:
                 query_parts.append("\nDependency Results:\n" + "\n".join(dep_sections))
-
-        query_parts.append(
-            "\nInstructions:"
-            "\n1. Execute each operation in the specified sequence"
-            "\n2. Use appropriate tools for each operation"
-            "\n3. Provide results after each operation"
-            "\n4. Handle any errors that occur during execution"
-            "\n5. Return a combined summary of all operations"
-            "\n6. IMPORTANT: Avoid making duplicate or redundant tool calls"
-            "\n7. IMPORTANT: Do not scrape the same URL multiple times"
-            "\n8. If you need data from a previously scraped URL, use the data already obtained"
-            "\n9. Consolidate operations to minimize the number of tool calls"
-        )
-
-        return "\n".join(query_parts)
+        if hasattr(task, 'context') and task.context:
+            query_parts.append(f"\nAdditional Repository Context:\n{task.context}\n")
+        
+        return "".join(query_parts)
 
     def get_stats(self) -> dict:
         """Retrieves execution statistics from the underlying task manager.

@@ -1551,6 +1551,18 @@ wheels = [
 ]
 
 [[package]]
+name = "neo4j"
+version = "5.28.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pytz" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/4b/20/733dac16f7cedc80b23093415822c9763302519cba0e7c8bcdb5c01fc512/neo4j-5.28.1.tar.gz", hash = "sha256:ae8e37a1d895099062c75bc359b2cce62099baac7be768d0eba7180c1298e214", size = 231094 }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/6a/57/94225fe5e9dabdc0ff60c88cbfcedf11277f4b34e7ab1373d3e62dbdd207/neo4j-5.28.1-py3-none-any.whl", hash = "sha256:6755ef9e5f4e14b403aef1138fb6315b120631a0075c138b5ddb2a06b87b09fd", size = 312258 },
+]
+
+[[package]]
 name = "nest-asyncio"
 version = "1.6.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3243,6 +3255,8 @@ dependencies = [
     { name = "mcp", extra = ["cli"] },
     { name = "mcp-server-fetch" },
     { name = "mem0ai" },
+    { name = "neo4j" },
+    { name = "networkx" },
     { name = "notion-client" },
     { name = "openai" },
     { name = "orjson" },
@@ -3303,6 +3317,8 @@ requires-dist = [
     { name = "mcp", extras = ["cli"], specifier = ">=1.9.0" },
     { name = "mcp-server-fetch", specifier = ">=2025.1.17" },
     { name = "mem0ai", specifier = ">=0.1.113" },
+    { name = "neo4j", specifier = ">=5.28.1" },
+    { name = "networkx", specifier = ">=3.5" },
     { name = "notion-client", specifier = ">=2.4.0" },
     { name = "openai", specifier = ">=1.59.7" },
     { name = "orjson", specifier = ">=3.10.15" },

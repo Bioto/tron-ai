@@ -11,6 +11,7 @@ import logging
 import uuid
 import inspect
 from tron_ai.agents.devops.code.agent import CodeScannerAgent
+from tron_ai.agents.devops.editor.agent import CodeEditorAgent
 
 logger = logging.getLogger(__name__)
 

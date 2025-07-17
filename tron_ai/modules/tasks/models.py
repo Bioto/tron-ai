@@ -51,6 +51,7 @@ class Task(BaseModel):
 
     # Execution state
     result: Optional[Any] = None
+    context: Optional[str] = Field(default=None, description="Additional context for task execution, such as repository graph information")
     error: Optional[str] = None
     done: bool = False
     priority: int = Field(

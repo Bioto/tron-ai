@@ -36,6 +36,10 @@ def build_swarm_graph(tools: SwarmTools) -> StateGraph:
         func=tools.execute_tasks
     )
     graph.add_node(
+        name="enrich_tasks_with_context",
+        func=tools.enrich_tasks_with_context
+    )
+    graph.add_node(
         name="handle_execution_results",
         func=tools.handle_results
     )
@@ -43,7 +47,8 @@ def build_swarm_graph(tools: SwarmTools) -> StateGraph:
     
     graph.add_edge("generate_tasks", "assign_agents_to_tasks", condition=lambda state: bool(state.tasks))
     graph.add_edge("generate_tasks", "handle_execution_results", condition=lambda state: not bool(state.tasks))
-    graph.add_edge("assign_agents_to_tasks", "execute_assigned_tasks")
+    graph.add_edge("assign_agents_to_tasks", "enrich_tasks_with_context")
+    graph.add_edge("enrich_tasks_with_context", "execute_assigned_tasks")
     graph.add_edge("execute_assigned_tasks", "handle_execution_results")
     
     graph.set_entrypoint("generate_tasks")

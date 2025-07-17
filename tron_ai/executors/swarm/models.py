@@ -26,6 +26,7 @@ class SwarmState(BaseModel):
         report: The final compiled report of the delegation workflow.
     """
     session_id: str = Field(default_factory=lambda: uuid.uuid4().hex, description="Session ID for conversation tracking")
+    repo_path: Optional[str] = Field(default=None, description="Path to the repository for context enrichment")
     root_id: Optional[str] = Field(default=None, description="Root workflow/call ID for workflow lineage")
     user_query: str = Field(default="", description="The original user query that initiated the workflow")
     tasks: List[Task] = Field(default_factory=list, description="List of tasks to be executed")

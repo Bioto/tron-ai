@@ -69,9 +69,9 @@ BASE_PROMPT = """
         {{_output_format_str}}
     </OUTPUT_FORMAT>
     <OUTPUT_FORMAT_RULES>
-        - Always return a List using `[]` of the above JSON objects, even if its just one item.
-        - If generating a list of tool calls, make sure to include the `name` and `args` and `kwargs` for each tool call.
-        - If you have sufficient information to provide a final response, include only the `response` field and omit `tool_calls`
+        - Return your output as a single JSON object matching the format above.
+        - If generating tool calls, include 'tool_calls' as a list of objects, each with 'name', 'args', and 'kwargs'.
+        - If you have sufficient information to provide a final response, include only the 'response' field and omit 'tool_calls'
         - When retrying failed tool calls, ensure you use the correct parameter format with kwargs
     </OUTPUT_FORMAT_RULES>
     {% endif %}
@@ -236,22 +236,29 @@ class LLMClient(Component):
 
         return {"tools": tool_manager.yaml_definitions, "_output_format_str": format_str}
 
-    def _format_query_with_results(self, query: str, tool_results: list) -> str:
-        """Format query with tool call results.
+    def _format_query_with_results(self, query: str, tool_results: list, previous_tool_calls: list = None) -> str:
+        """Format query with tool call results and previous calls.
 
         Args:
             query: The original query
             tool_results: List of tool execution results
+            previous_tool_calls: List of previous tool calls made
 
         Returns:
             Formatted query string
         """
-        if not tool_results:
+        if not tool_results and not previous_tool_calls:
             return query
 
-        logger.debug(f"Formatting query with {len(tool_results)} tool results")
+        logger.debug(f"Formatting query with {len(tool_results)} tool results and {len(previous_tool_calls) if previous_tool_calls else 0} previous calls")
         
-        formatted_query = query + "\n\n<PREVIOUS_TOOL_RESULTS>\n"
+        formatted_query = query + "\n\n<PREVIOUS_INTERACTION>\n"
+        
+        if previous_tool_calls:
+            formatted_query += "You previously requested these tool calls:\n"
+            formatted_query += json.dumps(previous_tool_calls, indent=2) + "\n\n"
+        
+        formatted_query += "<PREVIOUS_TOOL_RESULTS>\n"
         
         # Separate successful and failed results
         successful_results = [r for r in tool_results if not hasattr(r, 'error') or r.error is None]
@@ -261,8 +268,6 @@ class LLMClient(Component):
             formatted_query += "The following tool calls have already been executed successfully. "
             formatted_query += "Use these results to provide your final response. Do not repeat these tool calls.\n\n"
             
-            # Note: Tool results are truncated at 10000 chars to prevent context window overflow
-            # while still allowing reasonably sized responses (e.g., lists of 20+ items)
             for i, result in enumerate(successful_results):
                 output_str = str(result.output)
                 
@@ -287,12 +292,12 @@ class LLMClient(Component):
             formatted_query += "3. Ensure parameter names match exactly what the tool expects\n"
             formatted_query += "</TOOL_ERRORS>\n"
 
-        formatted_query += "</PREVIOUS_TOOL_RESULTS>\n\n"
+        formatted_query += "</PREVIOUS_TOOL_RESULTS>\n</PREVIOUS_INTERACTION>\n\n"
         
         if successful_results and not failed_results:
             formatted_query += "Based on the above tool results, provide your final response."
         elif failed_results:
-            formatted_query += "Please retry the failed tool calls with corrected parameters, then provide your final response."
+            formatted_query += "Please retry the failed tool calls with corrected parameters if needed, or provide your final response based on available information."
 
         logger.debug(f"Final formatted query length: {len(formatted_query)} characters")
         return formatted_query
@@ -328,7 +333,17 @@ class LLMClient(Component):
             logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
             
             # Execute tool using the manager
-            tool_result = tool_manager.execute_func(tool)
+            try:
+                tool_result = tool_manager.execute_func(tool)
+            except Exception as e:
+                tool_result = FunctionOutput(
+                    name=tool.name,
+                    input=tool,  # Store the original call
+                    output=None,
+                    error=str(e)
+                )
+                logger.error(f"Tool {tool.name} failed with exception: {str(e)}")
+
             logger.info(f"[TOOL_EXECUTION] Tool {tool.name} completed successfully")
             
             # Log the actual result content
@@ -443,40 +458,30 @@ class LLMClient(Component):
         )
 
         # Initialize iteration state
-        max_retries = LLM_MAX_RETRIES
-        retry_count = 0
+        max_iterations = 10  # Increased for better multi-turn support
+        max_error_retries = LLM_MAX_RETRIES
+        iteration = 0
+        error_retries = 0
         all_tool_call_results = []
-        current_query = user_query
-
-        # Track whether we've made progress to avoid redundant retries
-        last_successful_tool_count = 0
         previous_tool_calls = []
+        last_successful_tool_count = 0
 
-        while retry_count < max_retries:
-            self._log(f"Iteration {retry_count + 1} of {max_retries}")
-            logger.info(f"[LLM_RETRY] Starting iteration {retry_count + 1} of {max_retries}")
-
-            # Apply exponential backoff for retries
-            if retry_count > 0:
-                import time
-
-                backoff_delay = RETRY_BACKOFF_FACTOR**retry_count
-                actual_delay = min(backoff_delay, RETRY_MAX_BACKOFF)
-                self._log(f"Applying backoff delay: {actual_delay}s")
-                time.sleep(actual_delay)
+        while iteration < max_iterations:
+            self._log(f"Iteration {iteration + 1} of {max_iterations}")
+            logger.info(f"[LLM_ITERATION] Starting iteration {iteration + 1} of {max_iterations}")
 
             # Clean up accumulated results if needed
             all_tool_call_results = self._cleanup_accumulated_results(
                 all_tool_call_results
             )
             
-            # Format query with previous results
+            # Format query with previous results and calls
             formatted_query = self._format_query_with_results(
-                current_query, all_tool_call_results
+                user_query, all_tool_call_results, previous_tool_calls
             )
             
             # Make LLM call
-            logger.info(f"[LLM_RETRY] Making LLM call with {len(all_tool_call_results)} previous tool results")
+            logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
             results = generator(
                 prompt_kwargs={
                     "_template": system_prompt.build(),
@@ -484,66 +489,45 @@ class LLMClient(Component):
                 }
                 | tool_prompt_kwargs | prompt_kwargs
             )
-            dataset = orjson.loads(results.data)
-            logger.debug(f"[LLM_RETRY] LLM response: {dataset}")
+            dataset = from_json(results.raw_response)
+            if isinstance(dataset, list):
+                if len(dataset) == 1:
+                    dataset = dataset[0]
+                else:
+                    logger.warning(f"LLM returned list of {len(dataset)} items; taking first")
+                    dataset = dataset[0]
+            logger.debug(f"[LLM_ITERATION] LLM response: {dataset}")
 
             # Process tool calls
             current_tool_calls = dataset.get("tool_calls", [])
             
             # Check if we're repeating the same tool calls
-            if current_tool_calls == previous_tool_calls and retry_count > 0:
+            if current_tool_calls == previous_tool_calls and iteration > 0:
                 self._log("LLM is repeating the same tool calls. Breaking loop.")
-                logger.info(f"[LLM_RETRY] Duplicate tool calls detected: {current_tool_calls}")
-                logger.info(f"[LLM_RETRY] Dataset keys: {list(dataset.keys())}")
-                logger.info(f"[LLM_RETRY] Has response field: {'response' in dataset}")
+                logger.info(f"[LLM_ITERATION] Duplicate tool calls detected: {current_tool_calls}")
+                logger.info(f"[LLM_ITERATION] Dataset keys: {list(dataset.keys())}")
+                logger.info(f"[LLM_ITERATION] Has response field: {'response' in dataset}")
                 
                 # Check if the LLM provided a final response
                 if "response" in dataset:
                     self._log("LLM provided final response with duplicates. Returning response.")
-                    logger.info(f"[LLM_RETRY] Returning final response: {dataset.get('response', 'N/A')}")
+                    logger.info(f"[LLM_ITERATION] Returning final response: {dataset.get('response', 'N/A')}")
                     final_response = system_prompt.output_format(**dataset)
-                    # Ensure tool_calls is always attached only if the model supports it
                     if self._supports_tool_calls(final_response):
-                        final_response.tool_calls = []
-                        for r in all_tool_call_results:
-                            tool_call_entry = {
-                                "name": getattr(r, 'name', None),
-                                "args": getattr(r, 'args', None),
-                                "kwargs": getattr(r, 'kwargs', None),
-                                "error": getattr(r, 'error', None)
-                            }
-                            # Prefer tool_calls if present, else output
-                            if hasattr(r, 'tool_calls'):
-                                tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                            else:
-                                tool_call_entry["output"] = getattr(r, 'output', None)
-                            final_response.tool_calls.append(tool_call_entry)
+                        final_response.tool_calls = self._build_tool_calls_list(all_tool_call_results)
                     self._cache_response(cache_key, final_response)
                     return final_response
                 # Otherwise, break to make final direct call
                 self._log("No response in duplicate detection. Breaking to make final direct call.")
-                logger.info(f"[LLM_RETRY] Breaking loop - no response field in dataset")
+                logger.info(f"[LLM_ITERATION] Breaking loop - no response field in dataset")
                 break
             
             # Check if LLM provided a final response without tool calls (early termination)
             if "response" in dataset and not current_tool_calls:
                 self._log("LLM provided final response without tool calls. Returning response.")
                 final_response = system_prompt.output_format(**dataset)
-                # Ensure tool_calls is always attached only if the model supports it
                 if self._supports_tool_calls(final_response):
-                    final_response.tool_calls = []
-                    for r in all_tool_call_results:
-                        tool_call_entry = {
-                            "name": getattr(r, 'name', None),
-                            "args": getattr(r, 'args', None),
-                            "kwargs": getattr(r, 'kwargs', None),
-                            "error": getattr(r, 'error', None)
-                        }
-                        if hasattr(r, 'tool_calls'):
-                            tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                        else:
-                            tool_call_entry["output"] = getattr(r, 'output', None)
-                        final_response.tool_calls.append(tool_call_entry)
+                    final_response.tool_calls = self._build_tool_calls_list(all_tool_call_results)
                 self._cache_response(cache_key, final_response)
                 return final_response
             
@@ -553,80 +537,64 @@ class LLMClient(Component):
             # Check if any of the new results are errors
             has_errors = any(hasattr(r, 'error') and r.error is not None for r in new_results)
             if has_errors:
-                logger.info(f"[LLM_RETRY] Tool execution resulted in errors, will retry")
-                # Add error results to accumulated results so LLM can see them
+                logger.info(f"[LLM_ITERATION] Tool execution resulted in errors, will retry with backoff")
+                # Apply backoff only on errors
+                import time
+                backoff_delay = RETRY_BACKOFF_FACTOR ** error_retries
+                actual_delay = min(backoff_delay, RETRY_MAX_BACKOFF)
+                self._log(f"Applying backoff delay for error retry: {actual_delay}s")
+                time.sleep(actual_delay)
+                
+                # Add error results so LLM can see them
                 all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
-                retry_count += 1
-                continue  # Continue the retry loop
+                error_retries += 1
+                if error_retries >= max_error_retries:
+                    self._log(f"Exhausted error retries ({error_retries}), proceeding to final call")
+                    break
+                # Don't increment iteration for error retries
+                continue
 
-            # If there are no new tool calls to execute, we are done.
-            if not new_results and not current_tool_calls:
-                self._log("No new tool calls to execute. Finalizing.")
-                # We can return the 'response' field from the last LLM call
+            # Reset error retries on successful execution
+            error_retries = 0
+
+            # If no tool calls were made, we're done
+            if not current_tool_calls:
+                self._log("No tool calls in response. Finalizing.")
                 final_response = system_prompt.output_format(**dataset)
+                if self._supports_tool_calls(final_response):
+                    final_response.tool_calls = self._build_tool_calls_list(all_tool_call_results)
                 self._cache_response(cache_key, final_response)
                 return final_response
 
-            # Check if we're making progress (only count successful results)
+            # Check progress
             successful_new_results = [r for r in new_results if not hasattr(r, 'error') or r.error is None]
             current_tool_count = len([r for r in all_tool_call_results if not hasattr(r, 'error') or r.error is None]) + len(successful_new_results)
             
-            if current_tool_count == last_successful_tool_count and retry_count > 0:
+            if current_tool_count == last_successful_tool_count and iteration > 0:
                 self._log("No progress made in tool execution, considering early exit")
-                logger.info(f"[LLM_RETRY] No progress made - tool count remains at {current_tool_count}")
-                # If we're not making progress and have tried at least once,
-                # check if the LLM provided a final response
+                logger.info(f"[LLM_ITERATION] No progress made - tool count remains at {current_tool_count}")
                 if "response" in dataset:
                     self._log("LLM provided final response despite tool calls. Returning response.")
                     final_response = system_prompt.output_format(**dataset)
-                    # Ensure tool_calls is always attached only if the model supports it
                     if self._supports_tool_calls(final_response):
-                        final_response.tool_calls = []
-                        for r in all_tool_call_results:
-                            tool_call_entry = {
-                                "name": getattr(r, 'name', None),
-                                "args": getattr(r, 'args', None),
-                                "kwargs": getattr(r, 'kwargs', None),
-                                "error": getattr(r, 'error', None)
-                            }
-                            # Prefer tool_calls if present, else output
-                            if hasattr(r, 'tool_calls'):
-                                tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                            else:
-                                tool_call_entry["output"] = getattr(r, 'output', None)
-                            final_response.tool_calls.append(tool_call_entry)
+                        final_response.tool_calls = self._build_tool_calls_list(all_tool_call_results)
                     self._cache_response(cache_key, final_response)
                     return final_response
-                # Otherwise, force a final direct call
                 break
                     
             last_successful_tool_count = current_tool_count
             all_tool_call_results = self._add_unique_results(all_tool_call_results, new_results)
             
-            retry_count += 1
+            iteration += 1
 
-        # Otherwise, make a final direct call
-        self._log(f"Exhausted retries ({retry_count}), making final direct call")
+        # If loop exited without returning, make final direct call
+        self._log(f"Reached max iterations ({iteration}), making final direct call")
         
         final_response = self._execute_direct_call(
             generator, system_prompt, user_query, all_tool_call_results
         )
-        # Attach tool_calls to the response object only if the model supports it
         if self._supports_tool_calls(final_response):
-            final_response.tool_calls = []
-            for r in all_tool_call_results:
-                tool_call_entry = {
-                    "name": getattr(r, 'name', None),
-                    "args": getattr(r, 'args', None),
-                    "kwargs": getattr(r, 'kwargs', None),
-                    "error": getattr(r, 'error', None)
-                }
-                # Prefer tool_calls if present, else output
-                if hasattr(r, 'tool_calls'):
-                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                else:
-                    tool_call_entry["output"] = getattr(r, 'output', None)
-                final_response.tool_calls.append(tool_call_entry)
+            final_response.tool_calls = self._build_tool_calls_list(all_tool_call_results)
         self._cache_response(cache_key, final_response)
         return final_response
 
@@ -701,23 +669,18 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
             }
         )
 
-        response = system_prompt.output_format(**json.loads(results.data))
+        dataset = from_json(results.raw_response)
+        if isinstance(dataset, list):
+            if len(dataset) == 1:
+                dataset = dataset[0]
+            else:
+                logger.warning(f"LLM returned list of {len(dataset)} items in direct call; taking first")
+                dataset = dataset[0]
+
+        response = system_prompt.output_format(**dataset)
         self._log("Successfully processed response")
-        # Attach tool_calls to the response object only if the model supports it
         if self._supports_tool_calls(response):
-            response.tool_calls = []
-            for r in tool_results:
-                tool_call_entry = {
-                    "name": getattr(r, 'name', None),
-                    "args": getattr(r, 'args', None),
-                    "kwargs": getattr(r, 'kwargs', None),
-                    "error": getattr(r, 'error', None)
-                }
-                if hasattr(r, 'tool_calls'):
-                    tool_call_entry["tool_calls"] = getattr(r, 'tool_calls')
-                else:
-                    tool_call_entry["output"] = getattr(r, 'output', None)
-                response.tool_calls.append(tool_call_entry)
+            response.tool_calls = self._build_tool_calls_list(tool_results)
         return response
 
     def _get_cached_response(self, key: str) -> Optional[Any]:
@@ -735,6 +698,23 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
     def _cache_response(self, key: str, response: Any) -> None:
         """Cache the response with a TTL."""
         self._response_cache[key] = (response, datetime.now())
+
+    def _build_tool_calls_list(self, results: list) -> list:
+        """Helper to build tool_calls list from results."""
+        tool_calls = []
+        for r in results:
+            entry = {
+                "name": getattr(r, 'name', None),
+                "args": getattr(r, 'args', None),
+                "kwargs": getattr(r, 'kwargs', None),
+                "error": getattr(r, 'error', None)
+            }
+            if hasattr(r, 'tool_calls'):
+                entry["tool_calls"] = getattr(r, 'tool_calls')
+            else:
+                entry["output"] = getattr(r, 'output', None)
+            tool_calls.append(entry)
+        return tool_calls
 
 
 def get_llm_client(

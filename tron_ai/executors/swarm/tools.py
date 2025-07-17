@@ -282,6 +282,36 @@ class SwarmTools:
 
         return state
 
+    async def enrich_tasks_with_context(self, state: SwarmState) -> SwarmState:
+        """Enriches tasks with repository graph context if repo_path is provided."""
+        if not state.repo_path:
+            self.logger.debug("No repo_path provided, skipping context enrichment.")
+            return state
+        
+        from tron_ai.agents.devops.code.agent import CodeScannerAgent
+        
+        agent = CodeScannerAgent()
+        self.logger.debug(f"Enriching {len(state.tasks)} tasks with context from repo: {state.repo_path}")
+        
+        for task in state.tasks:
+            context_query = (
+                f"Provide relevant code context from the repository at {state.repo_path} "
+                f"for this task: {task.description}. "
+                f"Use tools to query the graph and summarize key structures, dependencies, and high PageRank elements."
+            )
+            try:
+                result = self.client.fcall(
+                    user_query=context_query,
+                    system_prompt=agent.prompt,
+                    tool_manager=agent.tool_manager,
+                )
+                task.context = result.response
+                self.logger.debug(f"Added context to task {task.identifier}")
+            except Exception as e:
+                self.logger.warning(f"Failed to enrich task {task.identifier}: {str(e)}")
+        
+        return state
+
     def create_error(
         self, state: SwarmState, error_message: str = None
     ) -> SwarmState:
