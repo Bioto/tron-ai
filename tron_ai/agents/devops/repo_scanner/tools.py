@@ -74,3 +74,92 @@ class RepoScannerTools:
             return result.stdout
         except Exception as e:
             return str(e) 
+    
+    @staticmethod
+    def read_file(file_path: str) -> str:
+        """
+        Read the contents of a file.
+        
+        Args:
+            file_path (str): Path to the file.
+            
+        Returns:
+            str: File contents or error message.
+        """
+        try:
+            with open(file_path, 'r') as f:
+                return f.read()
+        except Exception as e:
+            return f"Error reading file: {str(e)}"
+    
+    @staticmethod
+    def write_file(file_path: str, content: str) -> str:
+        """
+        Write content to a file.
+        
+        Args:
+            file_path (str): Path to the file.
+            content (str): Content to write.
+            
+        Returns:
+            str: Success message or error.
+        """
+        try:
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            with open(file_path, 'w') as f:
+                f.write(content)
+            return "File written successfully."
+        except Exception as e:
+            return f"Error writing file: {str(e)}"
+    
+    @staticmethod
+    def delete_file(file_path: str) -> str:
+        """
+        Delete a file.
+        
+        Args:
+            file_path (str): Path to the file.
+            
+        Returns:
+            str: Success message or error.
+        """
+        try:
+            os.remove(file_path)
+            return "File deleted successfully."
+        except Exception as e:
+            return f"Error deleting file: {str(e)}"
+    
+    @staticmethod
+    def create_directory(directory_path: str) -> str:
+        """
+        Create a directory.
+        
+        Args:
+            directory_path (str): Path to the directory.
+            
+        Returns:
+            str: Success message or error.
+        """
+        try:
+            os.makedirs(directory_path, exist_ok=True)
+            return "Directory created successfully."
+        except Exception as e:
+            return f"Error creating directory: {str(e)}"
+    
+    @staticmethod
+    def delete_directory(directory_path: str) -> str:
+        """
+        Delete a directory and its contents.
+        
+        Args:
+            directory_path (str): Path to the directory.
+            
+        Returns:
+            str: Success message or error.
+        """
+        import shutil
+        try:
+            shutil.rmtree(directory_path)
+            return "Directory deleted successfully."
+        except Exception as e:
+            return f"Error deleting directory: {str(e)}" 

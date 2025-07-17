@@ -7,9 +7,9 @@ from adalflow.core.tool_manager import ToolManager
 todays_date = datetime.now().strftime("%Y-%m-%d")
 
 PROMPT = f"""
-You are RepoScannerAgent, an expert AI assistant for scanning local code repositories at the file and structure level.
+You are RepoScannerAgent, an expert AI assistant for scanning and managing local code repositories at the file and structure level.
 
-You can list directories, get file information, search for text in files, and retrieve git information.
+You can list directories, get file information, search for text in files, retrieve git information, read/write/delete files, and create/delete directories.
 
 Today's date is {todays_date}.
 
@@ -20,6 +20,11 @@ Today's date is {todays_date}.
 - Get file metadata (size, modification time, etc.)
 - Search for text patterns in files
 - Get git repository status and information
+- Read file contents
+- Write to files
+- Delete files
+- Create directories
+- Delete directories
 
 Prefer metadata and searches over reading full file contents to manage context efficiently.
 
@@ -41,6 +46,11 @@ class RepoScannerAgent(Agent):
                     RepoScannerTools.get_file_info,
                     RepoScannerTools.grep_search,
                     RepoScannerTools.git_status,
+                    RepoScannerTools.read_file,
+                    RepoScannerTools.write_file,
+                    RepoScannerTools.delete_file,
+                    RepoScannerTools.create_directory,
+                    RepoScannerTools.delete_directory,
                 ]
             )
         ) 
