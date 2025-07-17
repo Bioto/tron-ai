@@ -35,10 +35,12 @@ from tron_ai.agents.business import (
     ContentCreationAgent,
     CommunityRelationsAgent,
 )
-from tron_ai.agents.devops.code.agent import CodeScannerAgent
-from tron_ai.agents.devops.code.tools import CodeScannerTools
+from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
+from tron_ai.agents.devops.code_scanner.tools import CodeScannerTools
 from rich.panel import Panel
 from rich.markdown import Markdown
+import asyncio
+import subprocess
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -476,6 +478,39 @@ async def scan_repo(directory: str, output: str, store_neo4j: bool):
             console.print(f"[green]Graph saved to {output}[/green]")
     except Exception as e:
         console.print(f"[bold red]Error:[/bold red] {str(e)}")
+
+
+@cli.command()
+@click.argument('directory')
+@click.option('--interval', default=300, help='Scan interval in seconds (default: 5 min).')
+@click.option('--store-neo4j', is_flag=True, help='Store updates in Neo4j.')
+async def scan_repo_watch(directory: str, interval: int, store_neo4j: bool):
+    """Watch and periodically scan a repository for updates."""
+    console = Console()
+    console.print(f"[bold blue]Watching {directory} every {interval} seconds...[/bold blue]\n[dim]Press Ctrl+C to stop.[/dim]")
+    
+    async def scan_task():
+        while True:
+            try:
+                # Check for changes (simple git status)
+                result = subprocess.run(['git', '-C', directory, 'status', '--porcelain'], capture_output=True, text=True)
+                changed = result.stdout.strip() != ''
+                if changed:
+                    console.print("[yellow]Changes detected! Running scan...[/yellow]")
+                    # Reuse scan logic
+                    graph = CodeScannerTools.build_dependency_graph(directory=directory)
+                    summary = f"Updated graph with {len(graph.nodes)} nodes and {len(graph.edges)} edges."
+                    if store_neo4j:
+                        store_response = CodeScannerTools.store_graph_to_neo4j(graph=graph)
+                        summary += f"\n{store_response}"
+                    console.print(Panel(summary, style="blue", title="Update Summary"))
+                else:
+                    console.print("[dim]No changes detected.[/dim]")
+                await asyncio.sleep(interval)
+            except Exception as e:
+                console.print(f"[red]Error during scan: {str(e)}[/red]")
+    
+    await scan_task()
 
 
 @click.group()

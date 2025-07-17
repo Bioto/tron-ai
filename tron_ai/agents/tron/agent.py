@@ -2,7 +2,7 @@ import sys
 
 from datetime import datetime
 from typing import Callable
-from tron_ai.agents.devops.code.agent import CodeScannerAgent
+from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
 from tron_ai.agents.devops.editor.agent import CodeEditorAgent
 from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
 from tron_ai.agents.productivity.google.agent import GoogleAgent

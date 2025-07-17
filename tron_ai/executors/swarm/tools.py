@@ -288,7 +288,7 @@ class SwarmTools:
             self.logger.debug("No repo_path provided, skipping context enrichment.")
             return state
         
-        from tron_ai.agents.devops.code.agent import CodeScannerAgent
+        from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
         
         agent = CodeScannerAgent()
         self.logger.debug(f"Enriching {len(state.tasks)} tasks with context from repo: {state.repo_path}")
