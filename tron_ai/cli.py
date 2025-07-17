@@ -35,6 +35,9 @@ from tron_ai.agents.business import (
     ContentCreationAgent,
     CommunityRelationsAgent,
 )
+from tron_ai.agents.devops.code.agent import CodeScannerAgent
+from rich.panel import Panel
+from rich.markdown import Markdown
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -430,6 +433,33 @@ async def chat(user_query: str, agent: str):
                 meta=None
             )
     await db_manager.close()
+
+
+@cli.command()
+@click.argument('directory')
+async def scan_repo(directory: str):
+    """Scan a local repository using CodeScannerAgent."""
+    console = Console()
+    try:
+        agent_instance = CodeScannerAgent()
+        client = LLMClient(
+            client=OpenAIClient(),
+            config=LLMClientConfig(
+                model_name="gpt-4o",
+                json_output=True,
+            ),
+        )
+        executor = AgentExecutor(
+            config=ExecutorConfig(
+                client=client,
+                logging=True,
+            ),
+        )
+        query = f"Scan the directory {directory} and build a structure map using tree-sitter to parse functions, classes, and imports. Summarize the structure without including full file contents."
+        response = await executor.execute(user_query=query, agent=agent_instance)
+        console.print(Panel(Markdown(response.response), style="blue", title="Scan Results"))
+    except Exception as e:
+        console.print(f"[bold red]Error:[/bold red] {str(e)}")
 
 
 @click.group()

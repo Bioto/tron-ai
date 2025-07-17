@@ -41,6 +41,8 @@ dependencies = [
     "pydantic-ai-slim[openai]>=0.2.16",
     "pyinstrument>=5.0.3",
     "notion-client>=2.4.0",
+    "tree-sitter>=0.24.0",
+    "tree-sitter-python>=0.23.6",
 ]
 
 [project.scripts]
