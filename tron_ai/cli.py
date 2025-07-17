@@ -1,3 +1,4 @@
+import os
 import asyncclick as click
 from rich.console import Console
 from rich.prompt import Prompt as RichPrompt
@@ -279,10 +280,13 @@ async def chat(user_query: str, agent: str):
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
 
-    client = LLMClient(
-        client=OpenAIClient(),
+    client = LLMClient( 
+        client=OpenAIClient(
+            base_url="https://api.groq.com/openai/v1",
+            api_key=os.getenv("GROQ_API_KEY"),
+        ),
         config=LLMClientConfig(
-            model_name="gpt-4o",
+            model_name="moonshotai/kimi-k2-instruct",
             json_output=True,
         ),
     )
@@ -413,6 +417,62 @@ async def chat(user_query: str, agent: str):
             )
             
             md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+
+            if hasattr(response, 'tool_calls') and response.tool_calls:
+                md_content += "\n\n### Diagnostic Message: Tools Used\n"
+                for tc in response.tool_calls:
+                    md_content += f"- **{tc['name']}**\n"
+                    if 'output' in tc:
+                        output_val = tc['output']
+                        if isinstance(output_val, (dict, list)):
+                            try:
+                                pretty_output = json.dumps(output_val, indent=2)
+                                if len(pretty_output) > 500:
+                                    md_content += "  Output (truncated):\n```json\n" + pretty_output[:500] + "...\n```\n"
+                                else:
+                                    md_content += "  Output:\n```json\n" + pretty_output + "\n```\n"
+                            except:
+                                output_str = str(output_val)
+                                if len(output_str) > 500:
+                                    md_content += f"  Output (truncated): {output_str[:500]}...\n"
+                                else:
+                                    md_content += f"  Output: {output_str}\n"
+                        else:
+                            output_str = str(output_val)
+                            if len(output_str) > 500:
+                                md_content += f"  Output (truncated): {output_str[:500]}...\n"
+                            else:
+                                md_content += f"  Output: {output_str}\n"
+                    if 'error' in tc:
+                        error_val = tc['error']
+                        if isinstance(error_val, (dict, list)):
+                            try:
+                                pretty_error = json.dumps(error_val, indent=2)
+                                if len(pretty_error) > 500:
+                                    md_content += "  Error (truncated):\n```json\n" + pretty_error[:500] + "...\n```\n"
+                                else:
+                                    md_content += "  Error:\n```json\n" + pretty_error + "\n```\n"
+                            except:
+                                error_str = str(error_val)
+                                if len(error_str) > 500:
+                                    md_content += f"  Error (truncated): {error_str[:500]}...\n"
+                                else:
+                                    md_content += f"  Error: {error_str}\n"
+                        else:
+                            error_str = str(error_val)
+                            if len(error_str) > 500:
+                                md_content += f"  Error (truncated): {error_str[:500]}...\n"
+                            else:
+                                md_content += f"  Error: {error_str}\n"
+                    md_content += "\n"
+
+            if hasattr(response, 'diagnostics') and response.diagnostics:
+                md_content += "\n\n### Response Diagnostics\n"
+                md_content += f"**Confidence Score:** {response.diagnostics.confidence:.2f}\n\n"
+                md_content += "**Thoughts:**\n"
+                for thought in response.diagnostics.thoughts:
+                    md_content += f"- {thought}\n"
+                md_content += "\n"
 
             assistant_panel = Panel(
                 Markdown(md_content),
