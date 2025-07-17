@@ -4,6 +4,7 @@ from datetime import datetime
 from typing import Callable
 from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
 from tron_ai.agents.devops.editor.agent import CodeEditorAgent
+from tron_ai.agents.devops.repo_scanner.agent import RepoScannerAgent
 from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
 from tron_ai.agents.productivity.google.agent import GoogleAgent
 from tron_ai.agents.devops.ssh.agent import SSHAgent
@@ -310,6 +311,7 @@ try:
     TronTools._agents = [
         CodeEditorAgent(),
         CodeScannerAgent(),
+        RepoScannerAgent(),
     ]
 except MissingEnvironmentVariable as e:
     Console().print(f"[bold red]Missing environment variable:[/bold red] {e}")

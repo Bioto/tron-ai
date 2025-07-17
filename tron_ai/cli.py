@@ -280,13 +280,13 @@ async def chat(user_query: str, agent: str):
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
 
-    client = LLMClient( 
+    client = LLMClient(
         client=OpenAIClient(
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),
         ),
         config=LLMClientConfig(
-            model_name="moonshotai/kimi-k2-instruct",
+            model_name="meta-llama/llama-4-maverick-17b-128e-instruct",
             json_output=True,
         ),
     )
