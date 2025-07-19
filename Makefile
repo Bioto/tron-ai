@@ -33,6 +33,10 @@ help:
 	@echo "  make ruff          - Run ruff linter"
 	@echo "  make ruff-fix      - Run ruff and auto-fix issues"
 	@echo "  make ruff-format   - Format code with ruff"
+	@echo "  make db-upgrade    - Run database migrations"
+	@echo "  make db-init       - Initialize database"
+	@echo "  make db-current    - Show current migration"
+	@echo "  make db-reset      - Reset database (WARNING: deletes data)"
 	@echo "  make compose-up    - Start tron-compose services"
 
 # Run all tests
@@ -150,6 +154,55 @@ check: ruff test-coverage
 dev: install
 	@echo "Development environment ready!"
 
+# Database migration commands
+.PHONY: db-upgrade
+db-upgrade:
+	$(PYTHON) -m alembic upgrade head
+	@echo "Database upgraded to latest migration"
+
+.PHONY: db-downgrade
+db-downgrade:
+	$(PYTHON) -m alembic downgrade -1
+	@echo "Database downgraded by one migration"
+
+.PHONY: db-current
+db-current:
+	$(PYTHON) -m alembic current
+	@echo "Current database revision shown above"
+
+.PHONY: db-history
+db-history:
+	$(PYTHON) -m alembic history
+	@echo "Migration history shown above"
+
+.PHONY: db-create-migration
+db-create-migration:
+	@read -p "Enter migration message: " message; \
+	$(PYTHON) -m alembic revision --autogenerate -m "$$message"
+	@echo "New migration created"
+
+.PHONY: db-create-a2a-migration
+db-create-a2a-migration:
+	$(PYTHON) -m alembic revision --autogenerate -m "add_a2a_session_continuity_tables"
+	@echo "A2A session continuity migration created"
+
+.PHONY: db-reset
+db-reset:
+	@echo "⚠️  WARNING: This will delete all data!"
+	@read -p "Are you sure? Type 'yes' to continue: " confirm; \
+	if [ "$$confirm" = "yes" ]; then \
+		rm -f data/conversations.db* || true; \
+		$(PYTHON) -m alembic upgrade head; \
+		echo "Database reset complete"; \
+	else \
+		echo "Database reset cancelled"; \
+	fi
+
+.PHONY: db-init
+db-init:
+	$(PYTHON) -c "from tron_ai.database.manager import DatabaseManager; from tron_ai.database.config import DatabaseConfig; import asyncio; asyncio.run(DatabaseManager(DatabaseConfig()).initialize())"
+	@echo "Database initialized"
+
 # CI/CD oriented targets
 .PHONY: ci
 ci: clean ruff test-coverage
@@ -163,3 +216,15 @@ quick:
 .PHONY: compose-up
 compose-up:
 	docker compose -f .docker/tron-compose.yml up -d 
+
+# Stop tron-compose services
+compose-down-tron:
+	docker compose -f .docker/tron-compose.yml down
+
+# Start mcp-compose services
+compose-up-mcp:
+	docker compose -f .docker/mcp/docker-compose.yml up -d 
+
+# Stop mcp-compose services
+compose-down-mcp:
+	docker compose -f .docker/mcp/docker-compose.yml down

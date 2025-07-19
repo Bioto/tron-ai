@@ -11,6 +11,7 @@ from rich.console import Console
 from rich.prompt import Prompt as RichPrompt
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.table import Table
 
 
 from tron_ai.config import setup_logging
@@ -239,7 +240,8 @@ async def ask(user_query: str, agent: str) -> str:
 @cli.command()
 @click.argument("user_query")
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
-async def chat(user_query: str, agent: str):
+@click.option("--mcp-agent", default=None, help="Use a specific MCP agent by server name (e.g., 'mcp-server-docker')")
+async def chat(user_query: str, agent: str, mcp_agent: str):
     """Start an interactive chat session with the Tron agent."""
     import uuid
     import time
@@ -250,7 +252,6 @@ async def chat(user_query: str, agent: str):
     from tron_ai.database.config import DatabaseConfig
     from tron_ai.database.manager import DatabaseManager
     from tron_ai.models.executors import ExecutorConfig
-    from tron_ai.models.config import LLMClientConfig
     from tron_ai.utils.llm.LLMClient import get_llm_client
     from tron_ai.executors.agent import AgentExecutor
     from adalflow.components.model_client import OpenAIClient
@@ -269,7 +270,23 @@ async def chat(user_query: str, agent: str):
         ),
     )
     
-    if agent == "google":
+    # Check if an MCP agent was requested
+    if mcp_agent:
+        from tron_ai.modules.mcp.manager import MCPAgentManager
+        try:
+            manager = MCPAgentManager()
+            await manager.initialize()
+            agent_instance = manager.get_agent(mcp_agent)
+            if not agent_instance:
+                console.print(f"[bold red]MCP agent '{mcp_agent}' not found![/bold red]")
+                console.print("Available MCP agents:")
+                for name in manager.agents.keys():
+                    console.print(f"  - {name}")
+                return
+        except Exception as e:
+            console.print(f"[bold red]Error loading MCP agent:[/bold red] {str(e)}")
+            return
+    elif agent == "google":
         from tron_ai.agents.productivity.google.agent import GoogleAgent
         agent_instance = GoogleAgent()
     elif agent == "ssh":
@@ -550,6 +567,574 @@ async def scan_repo_watch(directory: str, interval: int, store_neo4j: bool):
     await scan_task()
 
 
+@cli.command()
+async def status():
+    """Check the status of Docker Compose services."""
+    import docker
+    import yaml
+    from pathlib import Path
+    
+    console = Console()
+    
+    # Define compose files to check
+    compose_files = [
+        {
+            "name": "MCP Services",
+            "file": ".docker/mcp/docker-compose.yml",
+            "project_name": "mcp"  # docker-compose run from .docker/mcp/ 
+        },
+        {
+            "name": "Tron Services", 
+            "file": ".docker/tron-compose.yml",
+            "project_name": "docker"  # docker-compose run from .docker/ directory
+        }
+    ]
+    
+    # Create a table for displaying results
+    table = Table(title="Docker Compose Services Status")
+    table.add_column("Service Group", style="cyan", no_wrap=True)
+    table.add_column("Service Name", style="magenta")
+    table.add_column("Container Name", style="blue")
+    table.add_column("Status", justify="center")
+    table.add_column("Ports", style="green")
+    
+    overall_status = True
+    
+    try:
+        # Initialize Docker client - check for Colima or other custom contexts
+        docker_socket = None
+        
+        # Try to get the current Docker context
+        try:
+            result = subprocess.run(['docker', 'context', 'ls', '--format', '{{.Current}} {{.DockerEndpoint}}'], 
+                                  capture_output=True, text=True, timeout=5)
+            if result.returncode == 0:
+                for line in result.stdout.strip().split('\n'):
+                    if line.startswith('true '):
+                        docker_socket = line.split(' ', 1)[1]
+                        break
+        except:
+            pass
+        
+        # Initialize Docker client with the correct socket
+        if docker_socket and docker_socket.startswith('unix://'):
+            client = docker.DockerClient(base_url=docker_socket)
+        else:
+            client = docker.from_env()
+        
+        for compose_config in compose_files:
+            compose_file = compose_config["file"]
+            service_group = compose_config["name"]
+            project_name = compose_config["project_name"]
+            
+            if not os.path.exists(compose_file):
+                table.add_row(
+                    service_group,
+                    "N/A",
+                    "N/A",
+                    "[red]File not found[/red]",
+                    "N/A"
+                )
+                overall_status = False
+                continue
+                
+            try:
+                # Parse compose file to get expected services
+                with open(compose_file, 'r') as f:
+                    compose_data = yaml.safe_load(f)
+                
+                services_in_compose = list(compose_data.get('services', {}).keys())
+                found_services = []
+                
+                # Get all containers and filter by project
+                containers = client.containers.list(all=True)
+                
+                for container in containers:
+                    labels = container.labels
+                    container_name = container.name
+                    
+                    # Check if container belongs to this compose project
+                    # Be more specific about matching to avoid false positives
+                    matches_project = False
+                    
+                    # First, check if it has compose labels and matches our project
+                    if labels.get('com.docker.compose.project') == project_name:
+                        # Verify it's from the correct compose file
+                        config_files = labels.get('com.docker.compose.project.config_files', '')
+                        # Normalize paths for comparison
+                        full_compose_path = os.path.abspath(compose_file)
+                        if full_compose_path in config_files or compose_file in config_files or os.path.basename(compose_file) in config_files:
+                            matches_project = True
+                    
+                    # Fallback: check if container name exactly matches a service and has no conflicting labels
+                    elif not labels.get('com.docker.compose.project'):
+                        # Only match if container name exactly matches a service name
+                        if container_name in services_in_compose:
+                            matches_project = True
+                    
+                    if matches_project:
+                        service_name = labels.get('com.docker.compose.service', container_name)
+                        # If no compose service label, try to determine from container name
+                        if service_name == 'Unknown':
+                            # For containers without compose labels, use container name as service name
+                            service_name = container_name
+                        
+                        # Get container status
+                        if container.status == 'running':
+                            status_display = "[green]Running[/green]"
+                        elif container.status in ['exited', 'stopped']:
+                            status_display = "[red]Stopped[/red]"
+                            overall_status = False
+                        elif container.status == 'paused':
+                            status_display = "[yellow]Paused[/yellow]"
+                            overall_status = False
+                        else:
+                            status_display = f"[yellow]{container.status}[/yellow]"
+                            overall_status = False
+                        
+                        # Get port mappings
+                        ports = []
+                        if container.ports:
+                            for container_port, host_ports in container.ports.items():
+                                if host_ports:
+                                    for host_port in host_ports:
+                                        ports.append(f"{host_port['HostPort']}:{container_port}")
+                                else:
+                                    ports.append(container_port)
+                        
+                        ports_display = ", ".join(ports) if ports else "N/A"
+                        
+                        table.add_row(
+                            service_group if not found_services else "",
+                            service_name,
+                            container_name,
+                            status_display,
+                            ports_display
+                        )
+                        found_services.append(service_name)
+                
+                # Check for services defined in compose but not found as containers
+                missing_services = set(services_in_compose) - set(found_services)
+                for missing_service in missing_services:
+                    table.add_row(
+                        service_group if not found_services else "",
+                        missing_service,
+                        "N/A",
+                        "[yellow]Not created[/yellow]",
+                        "N/A"
+                    )
+                    overall_status = False
+                
+                # If no services found at all
+                if not found_services and not missing_services:
+                    table.add_row(
+                        service_group,
+                        "No services",
+                        "N/A",
+                        "[yellow]Not running[/yellow]",
+                        "N/A"
+                    )
+                    overall_status = False
+                    
+            except yaml.YAMLError as e:
+                table.add_row(
+                    service_group,
+                    "YAML Error",
+                    "N/A",
+                    f"[red]Parse error: {str(e)}[/red]",
+                    "N/A"
+                )
+                overall_status = False
+            except Exception as e:
+                table.add_row(
+                    service_group,
+                    "Error",
+                    "N/A",
+                    f"[red]{str(e)}[/red]",
+                    "N/A"
+                )
+                overall_status = False
+                
+    except docker.errors.DockerException as e:
+        table.add_row(
+            "Docker Error",
+            "Connection failed",
+            "N/A",
+            f"[red]Cannot connect to Docker: {str(e)}[/red]",
+            "N/A"
+        )
+        overall_status = False
+    except Exception as e:
+        table.add_row(
+            "System Error",
+            "Unknown error",
+            "N/A",
+            f"[red]{str(e)}[/red]",
+            "N/A"
+        )
+        overall_status = False
+    
+    console.print(table)
+    
+    # Overall status summary
+    if overall_status:
+        status_panel = Panel(
+            "[bold green]✓ All services are running[/bold green]",
+            style="green",
+            title="Overall Status"
+        )
+    else:
+        status_panel = Panel(
+            "[bold red]✗ Some services are not running[/bold red]",
+            style="red", 
+            title="Overall Status"
+        )
+    
+    console.print("\n")
+    console.print(status_panel)
+    
+    # Provide helpful commands (updated for both docker-compose and docker compose)
+    help_text = """
+**Useful Commands:**
+- Start MCP services: `docker compose -f .docker/mcp/docker-compose.yml up -d`
+- Start Tron services: `docker compose -f .docker/tron-compose.yml up -d`
+- Stop MCP services: `docker compose -f .docker/mcp/docker-compose.yml down`
+- Stop Tron services: `docker compose -f .docker/tron-compose.yml down`
+- View logs: `docker compose -f <compose-file> logs -f`
+- List all containers: `docker ps -a`
+- Neo4j web interface: http://localhost:7474 (user: neo4j, pass: password)
+    """
+    
+    console.print(Panel(Markdown(help_text), title="Quick Commands", style="dim"))
+
+
+@cli.command()
+async def list_mcp_agents():
+    """List all discovered MCP agents and their available tools."""
+    from tron_ai.modules.mcp.manager import MCPAgentManager
+    from rich.table import Table
+    from rich.panel import Panel
+    
+    console = Console()
+    
+    try:
+        # Initialize the MCP agent manager
+        manager = MCPAgentManager()
+        await manager.initialize()
+        
+        if not manager.agents:
+            console.print(Panel(
+                "[yellow]No MCP agents found![/yellow]\n\n"
+                "Check your mcp_servers.json configuration file.",
+                title="MCP Agents",
+                style="yellow"
+            ))
+            return
+        
+        # Create main table for agents
+        table = Table(title="🤖 Discovered MCP Agents", show_header=True, header_style="bold magenta")
+        table.add_column("Agent Name", style="cyan", no_wrap=True)
+        table.add_column("Server", style="green")
+        table.add_column("Description", style="white")
+        table.add_column("Tools Count", justify="center", style="yellow")
+        table.add_column("Status", justify="center")
+        
+        for server_name, agent in manager.agents.items():
+            # Get tool count
+            tool_count = len(agent.tool_manager.tools) if agent.tool_manager else 0
+            
+            # Status indicator
+            status = "✅ Active" if agent.mcp_client else "❌ Disconnected"
+            status_style = "green" if agent.mcp_client else "red"
+            
+            table.add_row(
+                agent.name,
+                server_name,
+                agent.description,
+                str(tool_count),
+                f"[{status_style}]{status}[/{status_style}]"
+            )
+        
+        console.print(table)
+        console.print()
+        
+        # Show detailed tool information for each agent
+        for server_name, agent in manager.agents.items():
+            if agent.tool_manager and agent.tool_manager.tools:
+                tool_table = Table(
+                    title=f"🛠️  Tools for {agent.name} ({server_name})",
+                    show_header=True,
+                    header_style="bold blue"
+                )
+                tool_table.add_column("Tool Name", style="cyan")
+                tool_table.add_column("Description", style="white", max_width=60)
+                
+                for tool in agent.tool_manager.tools:
+                    tool_name = tool.fn.__name__
+                    tool_desc = tool.fn.__doc__ or "No description available"
+                    # Clean up the description (take first line if multiline)
+                    tool_desc = tool_desc.split('\n')[0].strip()
+                    tool_table.add_row(tool_name, tool_desc)
+                
+                console.print(tool_table)
+                console.print()
+        
+        # Summary panel
+        total_agents = len(manager.agents)
+        total_tools = sum(len(agent.tool_manager.tools) if agent.tool_manager else 0 
+                         for agent in manager.agents.values())
+        
+        summary = Panel(
+            f"[bold green]Total Agents:[/bold green] {total_agents}\n"
+            f"[bold blue]Total Tools:[/bold blue] {total_tools}\n\n"
+            f"[dim]Configuration file: mcp_servers.json[/dim]",
+            title="📊 Summary",
+            style="green"
+        )
+        console.print(summary)
+        
+    except Exception as e:
+        console.print(Panel(
+            f"[bold red]Error:[/bold red] {str(e)}\n\n"
+            "Make sure your MCP servers are properly configured and accessible.",
+            title="❌ Error",
+            style="red"
+        ))
+    finally:
+        # Clean up the manager
+        try:
+            await manager.cleanup()
+        except Exception:
+            pass  # Ignore cleanup errors
+
+
+@cli.command()
+@click.option("--host", default="0.0.0.0", help="Host to bind the server to")
+@click.option("--port", default=8000, help="Port to bind the server to")
+@click.option("--include-mcp", is_flag=True, default=True, help="Include MCP agents in A2A server")
+async def start_a2a_server(host: str, port: int, include_mcp: bool):
+    """Start the A2A server with Tron agents and optionally MCP agents."""
+    import uvicorn
+    import httpx
+    from a2a.server.request_handlers import DefaultRequestHandler
+    from a2a.server.tasks import InMemoryPushNotifier, InMemoryTaskStore
+    from a2a.server.apps import A2AStarletteApplication
+    from tron_ai.executors.swarm.models import SwarmResults
+    from tron_ai.models.prompts import Prompt
+    from tron_ai.executors.agent import AgentExecutor
+    from tron_ai.models.agent import Agent
+    from tron_ai.executors.base import ExecutorConfig
+    from tron_ai.utils.llm.LLMClient import get_llm_client
+    from tron_ai.modules.a2a.executor import TronA2AExecutor
+    from rich.panel import Panel
+    
+    console = Console()
+    
+    console.print(Panel(
+        f"[bold cyan]🚀 Starting Tron AI A2A Server[/bold cyan]\n"
+        f"[green]Host:[/green] {host}\n"
+        f"[green]Port:[/green] {port}\n"
+        f"[green]Include MCP:[/green] {'Yes' if include_mcp else 'No'}",
+        title="Server Configuration",
+        style="cyan"
+    ))
+    
+    try:
+        # Collect all available agents
+        agents = []
+        
+        # Core Tron agents
+        from tron_ai.agents.tron.agent import TronAgent
+        tron_agent = TronAgent()
+        agents.append(tron_agent)
+        
+        # Add productivity agents
+        try:
+            from tron_ai.agents.productivity.google.agent import GoogleAgent
+            agents.append(GoogleAgent())
+            console.print("[green]✓[/green] Added Google Agent")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Google Agent unavailable: {str(e)}")
+        
+        try:
+            from tron_ai.agents.productivity.todoist.agent import TodoistAgent
+            agents.append(TodoistAgent())
+            console.print("[green]✓[/green] Added Todoist Agent")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Todoist Agent unavailable: {str(e)}")
+        
+        try:
+            from tron_ai.agents.productivity.notion.agent import NotionAgent
+            agents.append(NotionAgent())
+            console.print("[green]✓[/green] Added Notion Agent")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Notion Agent unavailable: {str(e)}")
+        
+        # Add DevOps agents
+        try:
+            from tron_ai.agents.devops.ssh.agent import SSHAgent
+            agents.append(SSHAgent())
+            console.print("[green]✓[/green] Added SSH Agent")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] SSH Agent unavailable: {str(e)}")
+        
+        # Add MCP agents if requested
+        mcp_agents = []
+        if include_mcp:
+            try:
+                from tron_ai.modules.mcp.manager import MCPAgentManager
+                manager = MCPAgentManager()
+                await manager.initialize()
+                
+                if manager.agents:
+                    for server_name, agent in manager.agents.items():
+                        agents.append(agent)
+                        mcp_agents.append(agent)
+                        console.print(f"[green]✓[/green] Added MCP Agent: {agent.name}")
+                else:
+                    console.print("[yellow]⚠[/yellow] No MCP agents found")
+            except Exception as e:
+                console.print(f"[red]✗[/red] Failed to load MCP agents: {str(e)}")
+        
+                 # Create the main orchestrator agent
+        orchestrator_agent = Agent(
+             name="Tron A2A Orchestrator",
+             description="Helpful assistant coordinating multiple specialized agents for comprehensive task execution",
+             prompt=Prompt(
+                 text=f"""You are the Tron A2A Orchestrator, a helpful assistant that coordinates {len(agents)} specialized agents to help users accomplish their goals.
+
+Available Agents:
+{chr(10).join([f"- {agent.name}: {agent.description}" for agent in agents])}
+
+Your role is to analyze user requests and either:
+1. **Simple Questions**: Answer directly if it's a basic query (like math, general knowledge, simple explanations)
+2. **Complex Tasks**: Break down into specific tasks and assign to appropriate agents
+
+Response Style:
+- For simple questions: Provide direct, helpful answers
+- For complex tasks: Create clear task breakdowns but respond conversationally  
+- Always be helpful, clear, and user-friendly
+- Avoid exposing internal task structures or diagnostic information
+- Focus on the user's actual needs and provide actionable information
+
+Response Format:
+- For simple questions: Set the `response` field with your direct answer and leave `tasks` empty
+- For complex operations: Leave `response` empty and create appropriate `tasks`
+
+Examples:
+- User: "What's 3 + 3?" → response: "3 + 3 equals 6", tasks: []
+- User: "What is Python?" → response: "Python is a programming language...", tasks: []
+- User: "Check my email and create a task" → response: "", tasks: [email_task, create_task]
+- User: "List my Docker containers" → response: "", tasks: [docker_list_task]
+
+Remember: Use the `response` field for direct answers and `tasks` only when agent delegation is needed.
+""",
+                 output_format=SwarmResults
+             ),
+         )
+        
+        # Create executor configuration
+        config = ExecutorConfig(client=get_llm_client(json_output=True), logging=True)
+        
+        # Create agent executor with all agents
+        executor = AgentExecutor(
+            config=config,
+            agents=agents
+        )
+        
+        # Create A2A executor
+        a2a_executor = TronA2AExecutor(
+            agent=orchestrator_agent,
+            executor=executor,
+            agents=agents
+        )
+        
+        # Create HTTP client and components
+        httpx_client = httpx.AsyncClient()
+        request_handler = DefaultRequestHandler(
+            agent_executor=a2a_executor,
+            task_store=InMemoryTaskStore(),
+            push_notifier=InMemoryPushNotifier(httpx_client),
+        )
+        
+        # Create A2A application
+        server = A2AStarletteApplication(
+            agent_card=orchestrator_agent.to_a2a_card(), 
+            http_handler=request_handler
+        )
+        
+        # Display detailed agent list
+        console.print()
+        agent_table = Table(title="🤖 Available Agents", show_header=True, header_style="bold magenta")
+        agent_table.add_column("Agent Name", style="cyan", no_wrap=True)
+        agent_table.add_column("Type", style="green")
+        agent_table.add_column("Description", style="white", max_width=50)
+        agent_table.add_column("Tools", justify="center", style="yellow")
+        
+        for agent in agents:
+            # Determine agent type
+            agent_type = "Core"
+            if agent in mcp_agents:
+                agent_type = "MCP"
+            elif "productivity" in agent.__class__.__module__:
+                agent_type = "Productivity"
+            elif "devops" in agent.__class__.__module__:
+                agent_type = "DevOps"
+            elif "business" in agent.__class__.__module__:
+                agent_type = "Business"
+            
+            # Get tool count
+            tool_count = 0
+            if hasattr(agent, 'tool_manager') and agent.tool_manager:
+                tool_count = len(agent.tool_manager.tools)
+            elif hasattr(agent, 'tools') and agent.tools:
+                tool_count = len(agent.tools)
+            
+            agent_table.add_row(
+                agent.name,
+                agent_type,
+                agent.description[:47] + "..." if len(agent.description) > 50 else agent.description,
+                str(tool_count) if tool_count > 0 else "N/A"
+            )
+        
+        console.print(agent_table)
+        console.print()
+        
+        # Show summary
+        summary_panel = Panel(
+            f"[bold green]🎯 Server Ready![/bold green]\n\n"
+            f"[bold blue]Total Agents:[/bold blue] {len(agents)}\n"
+            f"[bold cyan]Core Agents:[/bold cyan] {len(agents) - len(mcp_agents)}\n"
+            f"[bold yellow]MCP Agents:[/bold yellow] {len(mcp_agents)}\n\n"
+            f"[bold magenta]Access URL:[/bold magenta] http://{host}:{port}\n"
+            f"[bold magenta]Agent Card:[/bold magenta] http://{host}:{port}/.well-known/agent.json\n\n"
+            f"[dim]Press Ctrl+C to stop the server[/dim]",
+            title="🚀 Tron A2A Server",
+            style="green"
+        )
+        console.print(summary_panel)
+        
+        # Start the server
+        uvicorn.run(server.build(), host=host, port=port, log_level="info")
+        
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Server stopped by user[/yellow]")
+    except Exception as e:
+        console.print(Panel(
+            f"[bold red]Error starting server:[/bold red] {str(e)}",
+            title="❌ Error",
+            style="red"
+        ))
+    finally:
+        # Cleanup MCP agents if they were loaded
+        if include_mcp and 'manager' in locals():
+            try:
+                await manager.cleanup()
+                console.print("[dim]MCP agents cleaned up[/dim]")
+            except Exception:
+                pass
+
+
 @click.group()
 def db():
     """Database management commands."""
@@ -659,6 +1244,502 @@ async def show(session_id: str):
         console.print(f"[bold red]Error showing conversation:[/bold red] {e}")
     finally:
         await db_manager.close()
+
+@cli.command()
+@click.argument("message", required=False, default="Hello, what can you help me with?")
+@click.option("--host", default="127.0.0.1", help="A2A server host")
+@click.option("--port", default=8000, help="A2A server port")
+@click.option("--timeout", default=30, help="Request timeout in seconds")
+async def test_a2a_server(message: str, host: str, port: int, timeout: int):
+    """Test the A2A server by sending a message and displaying the response."""
+    import asyncio
+    import httpx
+    from uuid import uuid4
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+    from rich.progress import Progress, SpinnerColumn, TextColumn
+    from a2a.client import A2ACardResolver, A2AClient
+    from a2a.types import MessageSendParams, SendMessageRequest
+    
+    console = Console()
+    
+    base_url = f'http://{host}:{port}'
+    
+    console.print(Panel(
+        f"[bold cyan]🧪 Testing Tron A2A Server[/bold cyan]\n"
+        f"[green]Server:[/green] {base_url}\n"
+        f"[green]Message:[/green] {message}\n"
+        f"[green]Timeout:[/green] {timeout}s",
+        title="Test Configuration",
+        style="cyan"
+    ))
+    
+    try:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+            transient=True,
+        ) as progress:
+            
+            # Step 1: Test server connectivity
+            task = progress.add_task("🔗 Connecting to server...", total=None)
+            
+            async with httpx.AsyncClient(timeout=timeout) as httpx_client:
+                try:
+                    # Test basic connectivity
+                    response = await httpx_client.get(f"{base_url}/")
+                    progress.update(task, description="✅ Server is reachable")
+                except Exception as e:
+                    console.print(Panel(
+                        f"[bold red]❌ Cannot connect to server:[/bold red] {str(e)}\n\n"
+                        f"Make sure the A2A server is running:\n"
+                        f"[cyan]tron-ai start-a2a-server --host {host} --port {port}[/cyan]",
+                        title="Connection Error",
+                        style="red"
+                    ))
+                    return
+                
+                # Step 2: Get agent card
+                progress.update(task, description="📋 Fetching agent card...")
+                
+                try:
+                    resolver = A2ACardResolver(
+                        httpx_client=httpx_client,
+                        base_url=base_url,
+                    )
+                    
+                    public_card = await resolver.get_agent_card()
+                    progress.update(task, description="✅ Agent card retrieved")
+                    
+                    # Display agent info
+                    console.print(Panel(
+                        f"[bold green]Agent Name:[/bold green] {public_card.name}\n"
+                        f"[bold blue]Description:[/bold blue] {public_card.description}\n"
+                        f"[bold yellow]Version:[/bold yellow] {public_card.version}",
+                        title="🤖 Agent Information",
+                        style="green"
+                    ))
+                    
+                except Exception as e:
+                    console.print(Panel(
+                        f"[bold red]❌ Failed to get agent card:[/bold red] {str(e)}",
+                        title="Agent Card Error",
+                        style="red"
+                    ))
+                    return
+                
+                # Step 3: Create client and send message
+                progress.update(task, description="💬 Sending message...")
+                
+                try:
+                    client = A2AClient(
+                        httpx_client=httpx_client, 
+                        agent_card=public_card
+                    )
+
+                    send_message_payload = {
+                        'message': {
+                            'role': 'user',
+                            'parts': [
+                                {'kind': 'text', 'text': message}
+                            ],
+                            'messageId': uuid4().hex,
+                        },
+                    }
+                    
+                    request = SendMessageRequest(
+                        id=str(uuid4()), 
+                        params=MessageSendParams(**send_message_payload)
+                    )
+                    
+                    response = await client.send_message(request)
+                    progress.update(task, description="✅ Message sent, processing response...")
+                    
+                    # Extract and display response with comprehensive handling
+                    response_displayed = False
+                    response_success = False
+                    
+                    try:
+                        console.print("\n")
+                        
+                        # Handle different A2A response structures
+                        if hasattr(response, 'root') and response.root:
+                            root = response.root
+                            
+                            # Check for result structure
+                            if hasattr(root, 'result') and root.result:
+                                result = root.result
+                                
+                                # Handle status with message
+                                if hasattr(result, 'status') and result.status:
+                                    status = result.status
+                                    
+                                    if hasattr(status, 'message') and status.message:
+                                        message = status.message
+                                        
+                                        # Extract text from message parts
+                                        if hasattr(message, 'parts') and message.parts:
+                                            for part in message.parts:
+                                                if hasattr(part, 'root') and hasattr(part.root, 'text'):
+                                                    response_text = part.root.text
+                                                elif hasattr(part, 'text'):
+                                                    response_text = part.text
+                                                else:
+                                                    continue
+                                                
+                                                console.print(Panel(
+                                                    Markdown(response_text),
+                                                    title="🤖 Agent Response",
+                                                    style="green"
+                                                ))
+                                                response_displayed = True
+                                                response_success = True
+                                                break
+                                    
+                                    # Handle task updates or other status info
+                                    if hasattr(status, 'tasks') and status.tasks:
+                                        console.print(Panel(
+                                            f"[bold cyan]Task Updates:[/bold cyan]\n{status.tasks}",
+                                            title="📋 Task Status",
+                                            style="cyan"
+                                        ))
+                                        response_displayed = True
+                                        response_success = True
+                                
+                                # Handle direct result content
+                                if hasattr(result, 'content') and result.content:
+                                    console.print(Panel(
+                                        Markdown(str(result.content)),
+                                        title="🤖 Agent Result",
+                                        style="green"
+                                    ))
+                                    response_displayed = True
+                                    response_success = True
+                                
+                                # Handle task result structure
+                                if hasattr(result, 'task') and result.task:
+                                    task = result.task
+                                    task_info = []
+                                    
+                                    if hasattr(task, 'status'):
+                                        task_info.append(f"**Status:** {task.status}")
+                                    if hasattr(task, 'result'):
+                                        task_info.append(f"**Result:** {task.result}")
+                                    if hasattr(task, 'error'):
+                                        task_info.append(f"**Error:** {task.error}")
+                                    
+                                    if task_info:
+                                        console.print(Panel(
+                                            Markdown('\n'.join(task_info)),
+                                            title="📋 Task Details",
+                                            style="yellow"
+                                        ))
+                                        response_displayed = True
+                                        response_success = True
+                        
+                        # If we still haven't displayed anything, try to extract any text content
+                        if not response_displayed:
+                            # Try to convert response to string and look for meaningful content
+                            response_str = str(response)
+                            if len(response_str) > 50:  # Avoid showing tiny responses
+                                console.print(Panel(
+                                    f"[dim]Raw Response Structure:[/dim]\n{response_str[:1000]}{'...' if len(response_str) > 1000 else ''}",
+                                    title="🔍 Debug Response",
+                                    style="dim"
+                                ))
+                                response_displayed = True
+                        
+                        if not response_displayed:
+                            console.print(Panel(
+                                "[yellow]⚠️  No displayable content in response[/yellow]",
+                                title="⚠️ Empty Response",
+                                style="yellow"
+                            ))
+                            
+                            # Show response attributes for debugging
+                            if hasattr(response, '__dict__'):
+                                attrs = [f"- {k}: {type(v).__name__}" for k, v in response.__dict__.items()]
+                                console.print(Panel(
+                                    '\n'.join(attrs),
+                                    title="🔧 Response Attributes",
+                                    style="dim"
+                                ))
+                        
+                        # Show success/failure summary
+                        if response_success:
+                            console.print(Panel(
+                                "[bold green]✅ Test completed successfully![/bold green]\n\n"
+                                "The A2A server is working properly and can process requests.",
+                                title="✅ Test Results",
+                                style="green"
+                            ))
+                        else:
+                            console.print(Panel(
+                                "[bold yellow]⚠️  Test completed with warnings[/bold yellow]\n\n"
+                                "The server responded but the response format was unexpected.",
+                                title="⚠️ Test Results",
+                                style="yellow"
+                            ))
+                            
+                    except Exception as parse_error:
+                        console.print(Panel(
+                            f"[bold red]Error parsing response:[/bold red] {str(parse_error)}\n\n"
+                            f"[dim]Raw response:[/dim] {response}",
+                            title="❌ Parse Error",
+                            style="red"
+                        ))
+                        
+                except Exception as e:
+                    console.print(Panel(
+                        f"[bold red]❌ Failed to send message:[/bold red] {str(e)}",
+                        title="Message Error",
+                        style="red"
+                    ))
+                    return
+    
+    except Exception as e:
+        console.print(Panel(
+            f"[bold red]❌ Test failed:[/bold red] {str(e)}",
+            title="Test Error",
+            style="red"
+        ))
+
+
+@cli.command()
+@click.option("--host", default="127.0.0.1", help="A2A server host")
+@click.option("--port", default=8000, help="A2A server port")
+async def test_a2a_interactive(host: str, port: int):
+    """Start an interactive session with the A2A server."""
+    import asyncio
+    import httpx
+    from uuid import uuid4
+    from rich.panel import Panel
+    from rich.markdown import Markdown
+    from rich.prompt import Prompt as RichPrompt
+    from a2a.client import A2ACardResolver, A2AClient
+    from a2a.types import MessageSendParams, SendMessageRequest
+    
+    console = Console()
+    base_url = f'http://{host}:{port}'
+    
+    console.print(Panel(
+        f"[bold cyan]🚀 Interactive A2A Client[/bold cyan]\n"
+        f"[green]Server:[/green] {base_url}\n"
+        f"[dim]Type 'quit' or 'exit' to stop[/dim]",
+        title="Interactive Session",
+        style="cyan"
+    ))
+    
+    try:
+        async with httpx.AsyncClient(timeout=60) as httpx_client:
+            # Initialize client
+            try:
+                resolver = A2ACardResolver(
+                    httpx_client=httpx_client,
+                    base_url=base_url,
+                )
+                
+                public_card = await resolver.get_agent_card()
+                client = A2AClient(
+                    httpx_client=httpx_client, 
+                    agent_card=public_card
+                )
+                
+                console.print(Panel(
+                    f"[bold green]Connected to:[/bold green] {public_card.name}\n"
+                    f"[green]Description:[/green] {public_card.description}",
+                    title="🤖 Connected",
+                    style="green"
+                ))
+                
+            except Exception as e:
+                console.print(Panel(
+                    f"[bold red]❌ Cannot connect:[/bold red] {str(e)}\n\n"
+                    f"Make sure the server is running:\n"
+                    f"[cyan]tron-ai start-a2a-server --host {host} --port {port}[/cyan]",
+                    title="Connection Error",
+                    style="red"
+                ))
+                return
+            
+            # Interactive loop
+            while True:
+                try:
+                    user_input = RichPrompt.ask("\n[bold green]You[/bold green]")
+                    
+                    if user_input.lower() in ['quit', 'exit', 'bye']:
+                        console.print(Panel(
+                            "[bold yellow]👋 Goodbye![/bold yellow]",
+                            style="yellow"
+                        ))
+                        break
+                    
+                    # Send message
+                    with console.status("[bold blue]🤔 Agent is thinking...[/bold blue]"):
+                        send_message_payload = {
+                            'message': {
+                                'role': 'user',
+                                'parts': [
+                                    {'kind': 'text', 'text': user_input}
+                                ],
+                                'messageId': uuid4().hex,
+                            },
+                        }
+                        
+                        request = SendMessageRequest(
+                            id=str(uuid4()), 
+                            params=MessageSendParams(**send_message_payload)
+                        )
+                        
+                        response = await client.send_message(request)
+                    
+                    # Display response with comprehensive handling
+                    response_displayed = False
+                    
+                    try:
+                        # Handle different A2A response structures
+                        if hasattr(response, 'root') and response.root:
+                            root = response.root
+                            
+                            # Check for result structure
+                            if hasattr(root, 'result') and root.result:
+                                result = root.result
+                                
+                                # Handle status with message
+                                if hasattr(result, 'status') and result.status:
+                                    status = result.status
+                                    
+                                    if hasattr(status, 'message') and status.message:
+                                        message = status.message
+                                        
+                                        # Extract text from message parts
+                                        if hasattr(message, 'parts') and message.parts:
+                                            for part in message.parts:
+                                                if hasattr(part, 'root') and hasattr(part.root, 'text'):
+                                                    response_text = part.root.text
+                                                elif hasattr(part, 'text'):
+                                                    response_text = part.text
+                                                else:
+                                                    continue
+                                                
+                                                console.print(Panel(
+                                                    Markdown(response_text),
+                                                    title="🤖 Agent Response",
+                                                    style="blue"
+                                                ))
+                                                response_displayed = True
+                                                break
+                                    
+                                    # Handle task updates or other status info
+                                    if hasattr(status, 'tasks') and status.tasks:
+                                        console.print(Panel(
+                                            f"[bold cyan]Task Updates:[/bold cyan]\n{status.tasks}",
+                                            title="📋 Task Status",
+                                            style="cyan"
+                                        ))
+                                        response_displayed = True
+                                
+                                # Handle direct result content
+                                if hasattr(result, 'content') and result.content:
+                                    console.print(Panel(
+                                        Markdown(str(result.content)),
+                                        title="🤖 Agent Result",
+                                        style="blue"
+                                    ))
+                                    response_displayed = True
+                                
+                                # Handle Task artifacts (might contain actual results)
+                                if hasattr(result, 'artifacts') and result.artifacts:
+                                    console.print(Panel(
+                                        Markdown(f"**Task Artifacts:**\n{result.artifacts}"),
+                                        title="📋 Task Artifacts",
+                                        style="green"
+                                    ))
+                                    response_displayed = True
+                                
+                                # Handle Task history (might contain execution details)
+                                if hasattr(result, 'history') and result.history:
+                                    console.print(Panel(
+                                        Markdown(f"**Task History:**\n{result.history}"),
+                                        title="📋 Task History",
+                                        style="cyan"
+                                    ))
+                                    response_displayed = True
+                                
+                                # Handle Task.result field (different from root.result)
+                                if hasattr(result, 'result') and result.result:
+                                    console.print(Panel(
+                                        Markdown(f"**Task Result:**\n{result.result}"),
+                                        title="📋 Task Result",
+                                        style="blue"
+                                    ))
+                                    response_displayed = True
+                                
+                                # Handle task result structure (legacy)
+                                if hasattr(result, 'task') and result.task:
+                                    task = result.task
+                                    task_info = []
+                                    
+                                    if hasattr(task, 'status'):
+                                        task_info.append(f"**Status:** {task.status}")
+                                    if hasattr(task, 'result'):
+                                        task_info.append(f"**Result:** {task.result}")
+                                    if hasattr(task, 'error'):
+                                        task_info.append(f"**Error:** {task.error}")
+                                    
+                                    if task_info:
+                                        console.print(Panel(
+                                            Markdown('\n'.join(task_info)),
+                                            title="📋 Task Details",
+                                            style="yellow"
+                                        ))
+                                        response_displayed = True
+                        
+                        # If we still haven't displayed anything, try to extract any text content
+                        if not response_displayed:
+                            # Try to convert response to string and look for meaningful content
+                            response_str = str(response)
+                            if len(response_str) > 50:  # Avoid showing tiny responses
+                                console.print(Panel(
+                                    f"[dim]Raw Response Structure:[/dim]\n{response_str[:1000]}{'...' if len(response_str) > 1000 else ''}",
+                                    title="🔍 Debug Response",
+                                    style="dim"
+                                ))
+                                response_displayed = True
+                        
+                        if not response_displayed:
+                            console.print("[yellow]⚠️  No displayable content in response[/yellow]")
+                            
+                            # Show response attributes for debugging
+                            if hasattr(response, '__dict__'):
+                                attrs = [f"- {k}: {type(v).__name__}" for k, v in response.__dict__.items()]
+                                console.print(Panel(
+                                    '\n'.join(attrs),
+                                    title="🔧 Response Attributes",
+                                    style="dim"
+                                ))
+                            
+                    except Exception as parse_error:
+                        console.print(Panel(
+                            f"[bold red]Error parsing response:[/bold red] {str(parse_error)}\n\n"
+                            f"[dim]Raw response:[/dim] {response}",
+                            title="❌ Parse Error",
+                            style="red"
+                        ))
+                        
+                except KeyboardInterrupt:
+                    console.print("\n[yellow]Session interrupted[/yellow]")
+                    break
+                except Exception as e:
+                    console.print(f"[red]Error: {str(e)}[/red]")
+                    
+    except Exception as e:
+        console.print(Panel(
+            f"[bold red]❌ Session failed:[/bold red] {str(e)}",
+            title="Session Error",
+            style="red"
+        ))
 
 def main():
     """Entry point that suppresses SystemExit traceback"""

@@ -115,12 +115,14 @@ class AgentRouterResults(PromptMeta, BaseModel):
     )
     
 class SwarmResults(PromptMeta, BaseModel):
-    """Results from the agent manager containing the list of tasks to be executed.
+    """Results from the agent manager containing either direct responses or tasks to be executed.
 
-    This model represents the output from the agent manager which breaks down user queries
-    into individual tasks that need to be completed in sequence or parallel based on dependencies.
+    This model represents the output from the agent manager which either provides direct answers
+    for simple questions or breaks down complex queries into individual tasks that need to be 
+    completed in sequence or parallel based on dependencies.
 
     Attributes:
+        response (Optional[str]): Direct response for simple questions that don't require task delegation.
         tasks (List[Task]): A list of Task objects representing the individual tasks that need
             to be completed. Each task contains its own description, dependencies, and execution
             state. Tasks are ordered based on their dependencies and optimal execution order.
@@ -128,6 +130,11 @@ class SwarmResults(PromptMeta, BaseModel):
             This helps track which tools were used to generate the task list and can be useful for
             debugging or auditing purposes.
     """
+
+    response: Optional[str] = Field(
+        default="",
+        description="Direct response for simple questions that don't require task delegation"
+    )
 
     tasks: List[Task] = Field(
         description="The list of tasks that need to be completed.", 

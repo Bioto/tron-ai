@@ -4,7 +4,10 @@
       "command": "uvx",
       "args": [
         "mcp-server-docker"
-      ]
+      ],
+      "env": {
+        "DOCKER_HOST": "unix:///home/nicholasyoung/.config/colima/default/docker.sock"
+      }
     }
   }
 }

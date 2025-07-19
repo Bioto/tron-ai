@@ -13,7 +13,7 @@ The MCPAgent uses MultiMCPClient and MCPQueue to:
 
 import asyncio
 import logging
-from typing import Optional, Any, Callable
+from typing import Optional, Any, Callable, Dict
 from functools import wraps
 import traceback
 
@@ -49,10 +49,69 @@ class Agent(TronAgent):
     server_config: dict = Field()
     mcp_client: Optional[Client] = None
 
+    def _infer_description_from_server_name(self, server_name: str) -> str:
+        """Infer a meaningful description from the MCP server name."""
+        # Common server name patterns and their descriptions
+        name_patterns = {
+            "docker": "Docker container management and orchestration",
+            "kubernetes": "Kubernetes cluster management and deployment",
+            "k8s": "Kubernetes cluster management and deployment", 
+            "git": "Git repository operations and version control",
+            "github": "GitHub repository and project management",
+            "gitlab": "GitLab repository and CI/CD management",
+            "aws": "Amazon Web Services cloud operations",
+            "azure": "Microsoft Azure cloud services management",
+            "gcp": "Google Cloud Platform services management",
+            "terraform": "Infrastructure as Code with Terraform",
+            "ansible": "Configuration management and automation",
+            "jenkins": "CI/CD pipeline management with Jenkins",
+            "prometheus": "Monitoring and alerting with Prometheus",
+            "grafana": "Data visualization and monitoring dashboards",
+            "elasticsearch": "Search and analytics with Elasticsearch",
+            "redis": "Redis database and caching operations",
+            "postgres": "PostgreSQL database management",
+            "mysql": "MySQL database operations",
+            "mongodb": "MongoDB document database management",
+            "slack": "Slack messaging and collaboration",
+            "discord": "Discord communication and bot management",
+            "email": "Email management and automation",
+            "calendar": "Calendar and scheduling operations",
+            "filesystem": "File system operations and management",
+            "network": "Network configuration and monitoring",
+            "security": "Security scanning and vulnerability management",
+            "backup": "Backup and data recovery operations",
+            "logging": "Log management and analysis",
+            "metrics": "Performance metrics and monitoring",
+            "api": "API management and integration",
+            "web": "Web server and application management",
+            "ssh": "Secure Shell (SSH) remote access and management",
+            "browser": "Web browser automation and control"
+        }
+        
+        # Convert server name to lowercase for pattern matching
+        server_lower = server_name.lower()
+        
+        # Check for direct matches or partial matches
+        for pattern, description in name_patterns.items():
+            if pattern in server_lower:
+                return description
+        
+        # If no pattern matches, provide a generic but more descriptive fallback
+        return f"Specialized MCP server for {server_name} operations and management"
+
     def __init__(self, server_name: str, server_config: dict, **kwargs):
+        # Use server name directly as agent name
+        agent_name = server_name
+        
+        # Use description from config if available, otherwise infer from server name
+        agent_description = server_config.get(
+            "description", 
+            self._infer_description_from_server_name(server_name)
+        )
+        
         super().__init__(
-            name=f"MCP Agent ({server_name})",
-            description=f"Coordinates with MCP server '{server_name}' for distributed task execution",
+            name=agent_name,
+            description=agent_description,
             prompt=Prompt(
                 text=f"""You are a Master Control Program (MCP) expert for server '{server_name}'.\n\nYour responsibilities include:\n- Distributed Task Coordination\n- Server Management\n- Tool Management\n- Error Handling\n\nAlways follow best practices for reliability and performance."""
             ),
@@ -76,6 +135,14 @@ class Agent(TronAgent):
                     "connection_params": connection_params,
                 }
             ])
+            
+            # Get server information from initialization
+            server_info = await self._get_server_info()
+            if server_info and 'description' in server_info:
+                # Update agent description with server's own description
+                self.description = server_info['description']
+                logger.info(f"Updated agent description from MCP server: {self.description}")
+            
             functions = await self.mcp_client.list_functions()
             if not functions:
                 logger.warning(f"No functions available on MCP server {self.server_name}")
@@ -87,6 +154,38 @@ class Agent(TronAgent):
             if self.mcp_client:
                 await self.cleanup()
             raise
+
+    async def _get_server_info(self) -> Optional[Dict[str, Any]]:
+        """Get server information from the MCP client session."""
+        if not self.mcp_client or self.server_name not in self.mcp_client._sessions_by_name:
+            return None
+        
+        try:
+            session = self.mcp_client._sessions_by_name[self.server_name]
+            
+            # The server info should be available from the session's server_info attribute
+            # after initialization
+            if hasattr(session, 'server_info') and session.server_info:
+                server_info = session.server_info
+                logger.info(f"Retrieved server info for {self.server_name}: {server_info}")
+                
+                # Convert to dict if needed
+                if hasattr(server_info, '__dict__'):
+                    return vars(server_info)
+                elif hasattr(server_info, 'model_dump'):
+                    return server_info.model_dump()
+                elif isinstance(server_info, dict):
+                    return server_info
+                else:
+                    logger.warning(f"Unknown server info format: {type(server_info)}")
+                    return None
+            else:
+                logger.warning(f"No server info available for {self.server_name}")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Error getting server info for {self.server_name}: {str(e)}")
+            return None
 
     async def cleanup(self):
         """Clean up resources and close connections."""

@@ -11,7 +11,9 @@ from sqlalchemy.exc import IntegrityError
 
 from .config import DatabaseConfig
 from .models import Base, Conversation, Message, AgentSession
+from .models import A2AContext, A2ATask, A2AAgentInteraction
 from .models import ConversationResponse, MessageResponse, AgentSessionResponse
+from .models import A2AContextResponse, A2ATaskResponse, A2AAgentInteractionResponse
 
 logger = logging.getLogger(__name__)
 
@@ -252,5 +254,208 @@ class DatabaseManager:
         async with self.get_session() as session:
             cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
             stmt = delete(Conversation).where(Conversation.updated_at < cutoff_date)
+            result = await session.execute(stmt)
+            return result.rowcount
+
+    # A2A Session Continuity Management
+    async def create_a2a_context(self, context_id: str, agent_name: str, session_id: Optional[str] = None, conversation_history: Optional[List[dict]] = None, agent_state: Optional[dict] = None, extra_metadata: Optional[dict] = None) -> A2AContextResponse:
+        """Create a new A2A context for session continuity."""
+        async with self.get_session() as session:
+            a2a_context = A2AContext(
+                context_id=context_id,
+                session_id=session_id,
+                agent_name=agent_name,
+                conversation_history=conversation_history or [],
+                agent_state=agent_state,
+                extra_metadata=extra_metadata
+            )
+            session.add(a2a_context)
+            await session.flush()
+            return A2AContextResponse.model_validate(a2a_context)
+
+    async def get_a2a_context(self, context_id: str) -> Optional[A2AContextResponse]:
+        """Retrieve A2A context by context_id."""
+        async with self.get_session() as session:
+            stmt = select(A2AContext).where(A2AContext.context_id == context_id)
+            result = await session.execute(stmt)
+            context = result.scalar_one_or_none()
+            if context:
+                return A2AContextResponse.model_validate(context)
+            return None
+
+    async def update_a2a_context(self, context_id: str, conversation_history: Optional[List[dict]] = None, agent_state: Optional[dict] = None, extra_metadata: Optional[dict] = None, is_active: Optional[bool] = None) -> Optional[A2AContextResponse]:
+        """Update A2A context with new conversation history or state."""
+        async with self.get_session() as session:
+            stmt = select(A2AContext).where(A2AContext.context_id == context_id)
+            result = await session.execute(stmt)
+            context = result.scalar_one_or_none()
+            if not context:
+                return None
+            
+            if conversation_history is not None:
+                context.conversation_history = conversation_history
+            if agent_state is not None:
+                context.agent_state = agent_state
+            if extra_metadata is not None:
+                context.extra_metadata = extra_metadata
+            if is_active is not None:
+                context.is_active = is_active
+            
+            context.updated_at = datetime.now(timezone.utc)
+            return A2AContextResponse.model_validate(context)
+
+    async def append_to_a2a_conversation_history(self, context_id: str, message: dict) -> Optional[A2AContextResponse]:
+        """Append a new message to the A2A conversation history."""
+        async with self.get_session() as session:
+            stmt = select(A2AContext).where(A2AContext.context_id == context_id)
+            result = await session.execute(stmt)
+            context = result.scalar_one_or_none()
+            if not context:
+                return None
+            
+            if context.conversation_history is None:
+                context.conversation_history = []
+            
+            context.conversation_history.append(message)
+            context.updated_at = datetime.now(timezone.utc)
+            return A2AContextResponse.model_validate(context)
+
+    async def create_a2a_task(self, task_id: str, context_id: str, agent_name: str, status_state: str = "submitted", initial_message: Optional[dict] = None, parent_task_id: Optional[str] = None, extra_metadata: Optional[dict] = None) -> A2ATaskResponse:
+        """Create a new A2A task."""
+        async with self.get_session() as session:
+            a2a_task = A2ATask(
+                task_id=task_id,
+                context_id=context_id,
+                parent_task_id=parent_task_id,
+                status_state=status_state,
+                initial_message=initial_message,
+                agent_name=agent_name,
+                extra_metadata=extra_metadata,
+                execution_start=datetime.now(timezone.utc) if status_state in ["working", "submitted"] else None
+            )
+            session.add(a2a_task)
+            await session.flush()
+            return A2ATaskResponse.model_validate(a2a_task)
+
+    async def get_a2a_task(self, task_id: str) -> Optional[A2ATaskResponse]:
+        """Retrieve A2A task by task_id."""
+        async with self.get_session() as session:
+            stmt = select(A2ATask).where(A2ATask.task_id == task_id)
+            result = await session.execute(stmt)
+            task = result.scalar_one_or_none()
+            if task:
+                return A2ATaskResponse.model_validate(task)
+            return None
+
+    async def update_a2a_task_status(self, task_id: str, status_state: str, status_message: Optional[dict] = None, artifacts: Optional[List[dict]] = None, error_details: Optional[str] = None) -> Optional[A2ATaskResponse]:
+        """Update A2A task status and results."""
+        async with self.get_session() as session:
+            stmt = select(A2ATask).where(A2ATask.task_id == task_id)
+            result = await session.execute(stmt)
+            task = result.scalar_one_or_none()
+            if not task:
+                return None
+            
+            task.status_state = status_state
+            if status_message is not None:
+                task.status_message = status_message
+            if artifacts is not None:
+                task.artifacts = artifacts
+            if error_details is not None:
+                task.error_details = error_details
+            
+            # Set execution timing
+            if status_state == "working" and not task.execution_start:
+                task.execution_start = datetime.now(timezone.utc)
+            elif status_state in ["completed", "failed", "canceled"]:
+                task.execution_end = datetime.now(timezone.utc)
+            
+            task.updated_at = datetime.now(timezone.utc)
+            return A2ATaskResponse.model_validate(task)
+
+    async def append_to_a2a_task_history(self, task_id: str, message: dict) -> Optional[A2ATaskResponse]:
+        """Append a message to the A2A task history."""
+        async with self.get_session() as session:
+            stmt = select(A2ATask).where(A2ATask.task_id == task_id)
+            result = await session.execute(stmt)
+            task = result.scalar_one_or_none()
+            if not task:
+                return None
+            
+            if task.message_history is None:
+                task.message_history = []
+            
+            task.message_history.append(message)
+            task.updated_at = datetime.now(timezone.utc)
+            return A2ATaskResponse.model_validate(task)
+
+    async def get_a2a_tasks_for_context(self, context_id: str, limit: int = 50, offset: int = 0) -> List[A2ATaskResponse]:
+        """Get all A2A tasks for a given context."""
+        async with self.get_session() as session:
+            stmt = (
+                select(A2ATask)
+                .where(A2ATask.context_id == context_id)
+                .order_by(desc(A2ATask.created_at))
+                .offset(offset)
+                .limit(limit)
+            )
+            result = await session.execute(stmt)
+            tasks = result.scalars().all()
+            return [A2ATaskResponse.model_validate(task) for task in tasks]
+
+    async def create_a2a_agent_interaction(self, interaction_id: str, task_id: str, client_agent: str, remote_agent: str, interaction_type: str, request_message: Optional[dict] = None, remote_agent_url: Optional[str] = None, extra_metadata: Optional[dict] = None) -> A2AAgentInteractionResponse:
+        """Create a new A2A agent interaction record."""
+        async with self.get_session() as session:
+            interaction = A2AAgentInteraction(
+                interaction_id=interaction_id,
+                task_id=task_id,
+                client_agent=client_agent,
+                remote_agent=remote_agent,
+                remote_agent_url=remote_agent_url,
+                interaction_type=interaction_type,
+                request_message=request_message,
+                status="pending",
+                extra_metadata=extra_metadata
+            )
+            session.add(interaction)
+            await session.flush()
+            return A2AAgentInteractionResponse.model_validate(interaction)
+
+    async def update_a2a_agent_interaction(self, interaction_id: str, status: str, response_message: Optional[dict] = None, error_message: Optional[str] = None) -> Optional[A2AAgentInteractionResponse]:
+        """Update A2A agent interaction with response or error."""
+        async with self.get_session() as session:
+            stmt = select(A2AAgentInteraction).where(A2AAgentInteraction.interaction_id == interaction_id)
+            result = await session.execute(stmt)
+            interaction = result.scalar_one_or_none()
+            if not interaction:
+                return None
+            
+            interaction.status = status
+            if response_message is not None:
+                interaction.response_message = response_message
+            if error_message is not None:
+                interaction.error_message = error_message
+            if status in ["completed", "failed"]:
+                interaction.completed_at = datetime.now(timezone.utc)
+            
+            return A2AAgentInteractionResponse.model_validate(interaction)
+
+    async def get_a2a_agent_interactions(self, task_id: str) -> List[A2AAgentInteractionResponse]:
+        """Get all agent interactions for a specific task."""
+        async with self.get_session() as session:
+            stmt = (
+                select(A2AAgentInteraction)
+                .where(A2AAgentInteraction.task_id == task_id)
+                .order_by(A2AAgentInteraction.started_at)
+            )
+            result = await session.execute(stmt)
+            interactions = result.scalars().all()
+            return [A2AAgentInteractionResponse.model_validate(interaction) for interaction in interactions]
+
+    async def cleanup_old_a2a_contexts(self, days: int = 30) -> int:
+        """Clean up old A2A contexts and related data."""
+        async with self.get_session() as session:
+            cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
+            stmt = delete(A2AContext).where(A2AContext.updated_at < cutoff_date)
             result = await session.execute(stmt)
             return result.rowcount 

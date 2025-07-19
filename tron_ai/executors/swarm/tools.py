@@ -192,6 +192,7 @@ class SwarmTools:
         Raises:
             ExecutionError: If any tasks cannot be assigned to an agent.
         """
+        print(state.agents)
         self.logger.debug("Entering assign_agents.")
         self.logger.debug(f"Assigning agents for {len(state.tasks)} tasks.")
         selected_tasks, unassigned_tasks = self.agent_selector.select_agents(
