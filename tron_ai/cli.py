@@ -1,62 +1,25 @@
 import os
-import asyncclick as click
-from rich.console import Console
-from rich.prompt import Prompt as RichPrompt
-
-from tron_ai.database.manager import DatabaseManager
-from tron_ai.database.config import DatabaseConfig
-
-from tron_ai.agents.productivity.google.agent import GoogleAgent
-from tron_ai.config import setup_logging
-from tron_ai.executors.agent import AgentExecutor
-from tron_ai.models.config import LLMClientConfig
-from tron_ai.utils.llm.LLMClient import LLMClient
-from tron_ai.models.prompts import Prompt, PromptDefaultResponse
-from tron_ai.models.executors import ExecutorConfig
-from tron_ai.executors.completion import CompletionExecutor
-from tron_ai.agents.tron.agent import TronAgent
-from adalflow import OpenAIClient
+import warnings
 import logging
 import json
-from mem0 import Memory
-from mem0.memory.main import logger
-from mem0.configs.base import MemoryConfig, VectorStoreConfig
-import warnings
-from tron_ai.agents.devops.ssh.agent import SSHAgent
-from tron_ai.agents.productivity.todoist.agent import TodoistAgent
-from tron_ai.models.agent import MissingEnvironmentVariable
-from tron_ai.agents.productivity.notion.agent import NotionAgent
-from tron_ai.agents.business import (
-    MarketingStrategyAgent,
-    SalesAgent,
-    CustomerSuccessAgent,
-    ProductManagementAgent,
-    FinancialPlanningAgent,
-    AIEthicsAgent,
-    ContentCreationAgent,
-    CommunityRelationsAgent,
-)
-from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
-from tron_ai.agents.devops.code_scanner.tools import CodeScannerTools
-from rich.panel import Panel
-from rich.markdown import Markdown
 import asyncio
 import subprocess
+
+import asyncclick as click
+
+from rich.console import Console
+from rich.prompt import Prompt as RichPrompt
+from rich.panel import Panel
+from rich.markdown import Markdown
+
+
+from tron_ai.config import setup_logging
+
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
 
-
-memory = Memory(config=MemoryConfig(
-    history_db_path=".chroma/tron_history.db",
-    vector_store=VectorStoreConfig(
-        provider="chroma",
-        config={
-            "collection_name": "tron_memory",
-            "path": ".chroma/tron_memory.db",
-            
-        },
-    ),
+def get_update_memory_prompt():
     update_memory_prompt="""You are a smart memory manager which controls the memory of a system.
 You can perform four operations: (1) add into the memory, (2) update the memory, (3) delete from the memory, and (4) no change.
 
@@ -206,7 +169,7 @@ Please note to return the IDs in the output from the input IDs only and do not g
             ]
         }
     """
-))
+    return update_memory_prompt
 
 @click.group()
 async def cli():
@@ -219,7 +182,17 @@ async def cli():
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google"]))
 async def ask(user_query: str, agent: str) -> str:
     """Ask Tron AI a question"""
-
+    
+    from adalflow import OpenAIClient
+    from tron_ai.models.config import LLMClientConfig
+    from tron_ai.utils.llm.LLMClient import LLMClient
+    from tron_ai.models.executors import ExecutorConfig
+    from tron_ai.agents.tron.agent import TronAgent
+    from tron_ai.agents.productivity.google.agent import GoogleAgent
+    from tron_ai.executors.agent import AgentExecutor
+    from tron_ai.models.prompts import Prompt, PromptDefaultResponse
+    from tron_ai.executors.completion import CompletionExecutor
+    
     client = LLMClient(
         client=OpenAIClient(),
         config=LLMClientConfig(
@@ -274,48 +247,66 @@ async def chat(user_query: str, agent: str):
     from rich.panel import Panel
     from rich.markdown import Markdown
     from rich.align import Align
+    from tron_ai.database.config import DatabaseConfig
+    from tron_ai.database.manager import DatabaseManager
+    from tron_ai.models.executors import ExecutorConfig
+    from tron_ai.models.config import LLMClientConfig
+    from tron_ai.utils.llm.LLMClient import get_llm_client
+    from tron_ai.executors.agent import AgentExecutor
+    from adalflow.components.model_client import OpenAIClient
+    
     console = Console()
     db_config = DatabaseConfig()
     db_manager = DatabaseManager(db_config)
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
-
-    client = LLMClient(
+    
+    client = get_llm_client(
+        model_name="meta-llama/llama-4-maverick-17b-128e-instruct",
         client=OpenAIClient(
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),
         ),
-        config=LLMClientConfig(
-            model_name="meta-llama/llama-4-maverick-17b-128e-instruct",
-            json_output=True,
-        ),
     )
     
     if agent == "google":
+        from tron_ai.agents.productivity.google.agent import GoogleAgent
         agent_instance = GoogleAgent()
     elif agent == "ssh":
+        from tron_ai.agents.devops.ssh.agent import SSHAgent
         agent_instance = SSHAgent()
     elif agent == "todoist":
+        from tron_ai.agents.productivity.todoist.agent import TodoistAgent
         agent_instance = TodoistAgent()
     elif agent == "notion":
+        from tron_ai.agents.productivity.notion.agent import NotionAgent
         agent_instance = NotionAgent()
     elif agent == "marketing_strategy":
+        from tron_ai.agents.business.marketing_strategy.agent import MarketingStrategyAgent
         agent_instance = MarketingStrategyAgent()
     elif agent == "sales":
+        from tron_ai.agents.business.sales.agent import SalesAgent
         agent_instance = SalesAgent()
     elif agent == "customer_success":
+        from tron_ai.agents.business.customer_success.agent import CustomerSuccessAgent
         agent_instance = CustomerSuccessAgent()
     elif agent == "product_management":
+        from tron_ai.agents.business.product_management.agent import ProductManagementAgent
         agent_instance = ProductManagementAgent()
     elif agent == "financial_planning":
+        from tron_ai.agents.business.financial_planning.agent import FinancialPlanningAgent
         agent_instance = FinancialPlanningAgent()
     elif agent == "ai_ethics":
+        from tron_ai.agents.business.ai_ethics.agent import AIEthicsAgent
         agent_instance = AIEthicsAgent()
     elif agent == "content_creation":
+        from tron_ai.agents.business.content_creation.agent import ContentCreationAgent
         agent_instance = ContentCreationAgent()
     elif agent == "community_relations":
+        from tron_ai.agents.business.community_relations.agent import CommunityRelationsAgent
         agent_instance = CommunityRelationsAgent()
     else:
+        from tron_ai.agents.tron.agent import TronAgent
         agent_instance = TronAgent()
         
     executor = AgentExecutor(
@@ -504,24 +495,9 @@ async def chat(user_query: str, agent: str):
 @click.option('--store-neo4j', is_flag=True, help='Store the graph in Neo4j.')
 async def scan_repo(directory: str, output: str, store_neo4j: bool):
     """Scan a local repository using CodeScannerAgent."""
+    from tron_ai.agents.devops.code_scanner.tools import CodeScannerTools
     console = Console()
     try:
-        agent_instance = CodeScannerAgent()
-        client = LLMClient(
-            client=OpenAIClient(),
-            config=LLMClientConfig(
-                model_name="gpt-4o",
-                json_output=True,
-            ),
-        )
-        executor = AgentExecutor(
-            config=ExecutorConfig(
-                client=client,
-                logging=True,
-            ),
-        )
-        query = f"Scan the directory {directory} and build a dependency graph using tree-sitter and NetworkX. Summarize the graph structure."
-        response = await executor.execute(user_query=query, agent=agent_instance)
         # Build graph directly
         graph = CodeScannerTools.build_dependency_graph(directory=directory)
         response_text = f"Graph built with {len(graph.nodes)} nodes and {len(graph.edges)} edges."
@@ -546,6 +522,7 @@ async def scan_repo(directory: str, output: str, store_neo4j: bool):
 @click.option('--store-neo4j', is_flag=True, help='Store updates in Neo4j.')
 async def scan_repo_watch(directory: str, interval: int, store_neo4j: bool):
     """Watch and periodically scan a repository for updates."""
+    from tron_ai.agents.devops.code_scanner.tools import CodeScannerTools
     console = Console()
     console.print(f"[bold blue]Watching {directory} every {interval} seconds...[/bold blue]\n[dim]Press Ctrl+C to stop.[/dim]")
     
@@ -581,6 +558,8 @@ def db():
 @db.command()
 async def init():
     """Initialize the database and create tables."""
+    from tron_ai.database.manager import DatabaseManager
+    from tron_ai.database.config import DatabaseConfig
     console = Console()
     try:
         db_config = DatabaseConfig()
@@ -601,6 +580,8 @@ async def init():
 @click.option("--days", default=90, help="Delete conversations older than N days")
 async def cleanup(days: int):
     """Clean up old conversations."""
+    from tron_ai.database.manager import DatabaseManager
+    from tron_ai.database.config import DatabaseConfig
     console = Console()
     try:
         db_config = DatabaseConfig()
@@ -619,6 +600,8 @@ async def cleanup(days: int):
 @click.option("--days", default=30, help="Statistics for last N days")
 async def stats(user_id: str = None, agent: str = None, days: int = 30):
     """Show database statistics."""
+    from tron_ai.database.manager import DatabaseManager
+    from tron_ai.database.config import DatabaseConfig
     console = Console()
     try:
         db_config = DatabaseConfig()
@@ -647,6 +630,8 @@ async def stats(user_id: str = None, agent: str = None, days: int = 30):
 @click.argument("session_id")
 async def show(session_id: str):
     """Show conversation details."""
+    from tron_ai.database.manager import DatabaseManager
+    from tron_ai.database.config import DatabaseConfig
     console = Console()
     try:
         db_config = DatabaseConfig()

@@ -2,18 +2,10 @@ import sys
 
 from datetime import datetime
 from typing import Callable
-from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
-from tron_ai.agents.devops.editor.agent import CodeEditorAgent
-from tron_ai.agents.devops.repo_scanner.agent import RepoScannerAgent
-from tron_ai.agents.business import MarketingStrategyAgent, SalesAgent, CustomerSuccessAgent, ProductManagementAgent, FinancialPlanningAgent, AIEthicsAgent, ContentCreationAgent, CommunityRelationsAgent
-from tron_ai.agents.productivity.google.agent import GoogleAgent
-from tron_ai.agents.devops.ssh.agent import SSHAgent
-from tron_ai.agents.productivity.todoist.agent import TodoistAgent
 from tron_ai.agents.tron.tools import TronTools
-from tron_ai.models.agent import Agent, MissingEnvironmentVariable
+from tron_ai.models.agent import Agent
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from adalflow.core.tool_manager import ToolManager
-from rich.console import Console
 
 todays_date = datetime.now().strftime("%Y-%m-%d")
 
@@ -293,32 +285,11 @@ Example for email:
 
 Remember: You are the orchestrator. The swarm is your execution layer. Use it for ALL actions.
 """
-
-try:
-    # TronTools._agents = [
-    #     SSHAgent(),
-    #     TodoistAgent(),
-    #     GoogleAgent(),
-    #     MarketingStrategyAgent(),
-    #     SalesAgent(),
-    #     CustomerSuccessAgent(),
-    #     ProductManagementAgent(),
-    #     FinancialPlanningAgent(),
-    #     AIEthicsAgent(),
-    #     ContentCreationAgent(),
-    #     CommunityRelationsAgent(),
-    # ]
-    TronTools._agents = [
-        CodeEditorAgent(),
-        CodeScannerAgent(),
-        RepoScannerAgent(),
-    ]
-except MissingEnvironmentVariable as e:
-    Console().print(f"[bold red]Missing environment variable:[/bold red] {e}")
-    sys.exit(1)
     
 class TronAgent(Agent):
     def __init__(self, tools: list[Callable] = []):
+
+        
         todays_date = datetime.now().strftime("%Y-%m-%d")
         
         agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
@@ -343,4 +314,16 @@ class TronAgent(Agent):
             ),
             required_env_vars=["OPENAI_API_KEY"]
         )
+        
+    @staticmethod
+    def build_agent_list():
+        from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
+        from tron_ai.agents.devops.editor.agent import CodeEditorAgent
+        from tron_ai.agents.devops.repo_scanner.agent import RepoScannerAgent
+        
+        TronTools._agents = [
+            CodeEditorAgent(),
+            CodeScannerAgent(),
+            RepoScannerAgent(),
+        ]
         

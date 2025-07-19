@@ -1,14 +1,12 @@
 """Database manager for conversation history operations."""
 
-import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
 from contextlib import asynccontextmanager
 
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
-from sqlalchemy import select, update, delete, func, desc, and_
-from sqlalchemy.orm import selectinload
+from sqlalchemy import select, delete, desc
 from sqlalchemy.exc import IntegrityError
 
 from .config import DatabaseConfig

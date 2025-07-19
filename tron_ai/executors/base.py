@@ -1,11 +1,14 @@
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
 import logging
 
 from pydantic import BaseModel
 from tron_ai.models.prompts import Prompt
-from tron_ai.utils.llm.LLMClient import LLMClient
 from tron_ai.models.executors import ExecutorConfig
+
+if TYPE_CHECKING:
+    from tron_ai.utils.llm.LLMClient import LLMClient
 
 
 class Executor(ABC):
@@ -19,7 +22,7 @@ class Executor(ABC):
             self.logger = logging.getLogger(__name__)   
 
     @property
-    def client(self) -> LLMClient:
+    def client(self) -> 'LLMClient':
         return self._config.client
 
     @property

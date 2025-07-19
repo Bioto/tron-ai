@@ -1,9 +1,11 @@
 [project]
 name = "tron-ai"
 version = "0.1.0"
-description = "Add your description here"
+description = "AI agent framework with specialized agents for business, devops, and productivity tasks, featuring multi-agent orchestration via swarm executor."
 readme = "README.md"
 requires-python = ">=3.12"
+authors = [{name = "Nicholas Young", email = "ynickd@gmail.com"}]
+license = {text = "MIT"}
 dependencies = [
     "adalflow>=0.2.6",
     "click>=8.1.8",
@@ -41,6 +43,7 @@ dependencies = [
     "pydantic-ai-slim[openai]>=0.2.16",
     "pyinstrument>=5.0.3",
     "notion-client>=2.4.0",
+    "python-dotenv>=1.0.0",
     "tree-sitter>=0.24.0",
     "tree-sitter-python>=0.23.6",
     "networkx>=3.5",

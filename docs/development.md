@@ -43,19 +43,62 @@ pre-commit install
 
 ### Environment Configuration
 
-Create a `.env` file in the project root:
+The application automatically loads environment variables from a `.env` file in the project root. Copy the example file and configure your settings:
 
 ```bash
-# Required
-OPENAI_API_KEY=your-openai-api-key
+# Copy the example environment file
+cp .env.example .env
 
-# Optional
-PERPLEXITY_API_KEY=your-perplexity-api-key
+# Edit the .env file with your actual values
+```
 
-# Development settings
-TRON_LOG_LEVEL_ROOT=DEBUG
-TRON_LOG_LEVEL_tron-ai=DEBUG
-TRON_LOG_LEVEL_ADALFLOW=INFO
+#### Required Environment Variables
+
+```bash
+# OpenAI API Key (Required for most agents)
+OPENAI_API_KEY=your-openai-api-key-here
+
+# Groq API Key (Required for chat command)
+GROQ_API_KEY=your-groq-api-key-here
+```
+
+#### Optional Environment Variables
+
+```bash
+# Perplexity API Key (for product management agent)
+PERPLEXITY_API_KEY=your-perplexity-api-key-here
+
+# Todoist API Token (for todoist agent)
+TODOIST_API_TOKEN=your-todoist-api-token-here
+
+# Notion API Token (for notion agent)
+NOTION_API_TOKEN=your-notion-api-token-here
+
+# Google Application Credentials (for Google agent)
+GOOGLE_APPLICATION_CREDENTIALS=path/to/your/google-credentials.json
+```
+
+#### Development Settings
+
+```bash
+# Logging configuration
+TRON_LOG_LEVEL_ROOT=WARNING
+TRON_LOG_LEVEL_tron_ai=DEBUG
+TRON_LOG_LEVEL_THIRD_PARTY=WARNING
+
+# Development mode
+TRON_DEV_MODE=false
+```
+
+#### Custom .env File Location
+
+You can also specify a custom .env file location programmatically:
+
+```python
+from tron_ai.config import load_env_file
+
+# Load from a specific path
+load_env_file("/path/to/your/.env")
 ```
 
 ## Project Structure

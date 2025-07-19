@@ -60,16 +60,26 @@ uv sync  # or pip install -e .
 
 ### Environment Setup
 
-```bash
-OPENAI_API_KEY=your-openai-key
-GROQ_API_KEY=your-groq-key  # For chat
-TODOIST_API_TOKEN=your-todoist-token
-NOTION_API_TOKEN=your-notion-token
-GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json
+Copy the example environment file and configure your API keys:
 
-# Logging
-TRON_LOG_LEVEL_ROOT=INFO
+```bash
+# Copy the example environment file
+cp .env.example .env
+
+# Edit .env with your actual API keys
 ```
+
+Required environment variables:
+- `OPENAI_API_KEY` - OpenAI API key (required for most agents)
+- `GROQ_API_KEY` - Groq API key (required for chat command)
+
+Optional environment variables:
+- `TODOIST_API_TOKEN` - For Todoist agent
+- `NOTION_API_TOKEN` - For Notion agent  
+- `GOOGLE_APPLICATION_CREDENTIALS` - Path to Google credentials
+- `PERPLEXITY_API_KEY` - For product management agent
+
+The application automatically loads these from the `.env` file.
 
 ## Basic Usage
 

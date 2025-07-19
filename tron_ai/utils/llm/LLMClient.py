@@ -4,16 +4,10 @@ import logging
 import pprint
 from datetime import datetime, timedelta
 
-# Third-party imports
-from adalflow import Component, Generator, ModelClient, OpenAIClient
-from adalflow.core.tool_manager import ToolManager
-from adalflow.core.types import Function, FunctionOutput
-import pydantic
-from pydantic_core import from_json
-from polyfactory.factories.pydantic_factory import ModelFactory
-import orjson
+# Import Component at module level since it's needed for inheritance
+from adalflow import Component
 
-# Local imports
+# Local imports (keep lightweight ones at module level)
 from tron_ai.models.config import LLMClientConfig
 from tron_ai.models.prompts import Prompt, PromptDefaultResponse
 from tron_ai.constants import (
@@ -34,7 +28,13 @@ logger = logging.getLogger(__name__)
 
 # Using TYPE_CHECKING to avoid circular imports in runtime
 if TYPE_CHECKING:
-    pass
+    from adalflow import Generator, ModelClient, OpenAIClient
+    from adalflow.core.tool_manager import ToolManager
+    from adalflow.core.types import Function, FunctionOutput
+    import pydantic
+    from pydantic_core import from_json
+    from polyfactory.factories.pydantic_factory import ModelFactory
+    import orjson
 
 BASE_PROMPT = """
 <SYS>
@@ -93,7 +93,7 @@ You:
 
 
 class LLMClient(Component):
-    def __init__(self, client: ModelClient, config: LLMClientConfig, *args, **kwargs):
+    def __init__(self, client: 'ModelClient', config: LLMClientConfig, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
         self._client = client
@@ -113,7 +113,7 @@ class LLMClient(Component):
             logger.info(f"[LLMClient] {message}")
 
     @property
-    def api_client(self) -> ModelClient:
+    def api_client(self):
         return self._client
 
     @property
@@ -125,7 +125,10 @@ class LLMClient(Component):
         prompt: str = BASE_PROMPT,
         output_processors=None,
         override_json_format: bool = None,
-    ) -> Generator:
+    ):
+        # Lazy import Generator
+        from adalflow import Generator
+        
         json_output = (
             override_json_format
             if override_json_format is not None
@@ -152,7 +155,12 @@ class LLMClient(Component):
 
     def call(
         self, user_query: str, system_prompt: Prompt, prompt_kwargs: dict = {}
-    ) -> pydantic.BaseModel:
+    ):
+        # Lazy imports
+        import pydantic
+        from pydantic_core import from_json
+        from polyfactory.factories.pydantic_factory import ModelFactory
+        
         self._log(f"Making API call with query: {user_query[:100]}...")
         generator = self._build_generator()
 
@@ -181,7 +189,7 @@ class LLMClient(Component):
         self,
         user_query: str,
         system_prompt: Prompt,
-        tool_manager: Optional[ToolManager] = None,
+        tool_manager: Optional['ToolManager'] = None,
         prompt_kwargs: dict = {},
     ) -> Any:
         """Execute function call with optional tool management.
@@ -216,7 +224,7 @@ class LLMClient(Component):
         )
 
     def _prepare_tool_prompt_kwargs(
-        self, tool_manager: ToolManager, output_data_class: type
+        self, tool_manager: 'ToolManager', output_data_class: type
     ) -> dict:
         """Prepare prompt kwargs for tool-enabled calls.
 
@@ -227,6 +235,9 @@ class LLMClient(Component):
         Returns:
             Dictionary of prompt kwargs
         """
+        # Lazy import
+        from polyfactory.factories.pydantic_factory import ModelFactory
+        
         logger.info(f"Tool manager provided with {len(tool_manager.tools)} tools")
  
         class GenericFactory(ModelFactory[output_data_class]):
@@ -302,7 +313,7 @@ class LLMClient(Component):
         logger.debug(f"Final formatted query length: {len(formatted_query)} characters")
         return formatted_query
 
-    def _execute_tool_calls(self, tool_calls: list, tool_manager: ToolManager) -> list:
+    def _execute_tool_calls(self, tool_calls: list, tool_manager: 'ToolManager') -> list:
         """Execute tool calls and return results.
 
         Args:
@@ -312,6 +323,9 @@ class LLMClient(Component):
         Returns:
             List of tool execution results
         """
+        # Lazy imports
+        from adalflow.core.types import Function, FunctionOutput
+        
         if not tool_calls:
             return []
         
@@ -411,6 +425,7 @@ class LLMClient(Component):
 
     def _supports_tool_calls(self, obj: Any) -> bool:
         """Check if a Pydantic model supports a 'tool_calls' field."""
+        import pydantic
         return (
             isinstance(obj, pydantic.BaseModel) and
             'tool_calls' in obj.__class__.model_fields
@@ -418,10 +433,10 @@ class LLMClient(Component):
 
     def _execute_with_tools(
         self,
-        generator: Generator,
+        generator,
         system_prompt: Prompt,
         user_query: str,
-        tool_manager: ToolManager,
+        tool_manager: 'ToolManager',
         prompt_kwargs: dict = {}
     ) -> Any:
         """Execute query with tool management support.
@@ -442,6 +457,10 @@ class LLMClient(Component):
         Returns:
             Processed response
         """
+        # Lazy imports
+        import orjson
+        from pydantic_core import from_json
+        
         # Check cache first
         cache_key = f"{user_query}:{orjson.dumps(prompt_kwargs)}"
         cached_response = self._get_cached_response(cache_key)
@@ -600,10 +619,10 @@ class LLMClient(Component):
 
     def _execute_direct_call(
         self,
-        generator: Generator,
+        generator,
         system_prompt: Prompt,
         user_query: str,
-        tool_results: List[FunctionOutput],
+        tool_results: List,
     ) -> Any:
         """Execute a direct call without tool iteration.
 
@@ -616,6 +635,10 @@ class LLMClient(Component):
         Returns:
             Processed response
         """
+        # Lazy imports
+        from pydantic_core import from_json
+        from polyfactory.factories.pydantic_factory import ModelFactory
+        
         logger.info("Making direct call without tool manager")
 
         formatted_query = f"""User query:
@@ -721,7 +744,7 @@ def get_llm_client(
     model_name: str = "gpt-4o",
     json_output: bool = False,
     logging: bool = False,
-    client: Optional[ModelClient] = None,
+    client: Optional['ModelClient'] = None,
 ) -> "LLMClient":
     """
     Factory function to get an LLMClient instance.
@@ -737,7 +760,9 @@ def get_llm_client(
     Returns:
         LLMClient: An instance of the LLM client.
     """
+    # Lazy import OpenAIClient only when needed
     if client is None:
+        from adalflow import OpenAIClient
         client = OpenAIClient()
 
     config = LLMClientConfig(

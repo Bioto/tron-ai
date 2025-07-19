@@ -2,9 +2,62 @@ import logging
 import logging.config  # Explicit import for dictConfig
 import os
 import copy
+from pathlib import Path
+from typing import Optional
 
-PERPLEXITY_API_KEY = os.getenv("PERPLEXITY_API_KEY")
-PERPLEXITY_MODEL = os.getenv("PERPLEXITY_MODEL", "sonar-reasoning-pro")
+# Load environment variables from .env file
+def load_dotenv(env_file: Optional[str] = None) -> None:
+    """
+    Load environment variables from a .env file.
+    
+    Args:
+        env_file: Path to the .env file. If None, will look for .env in the project root.
+    """
+    try:
+        from dotenv import load_dotenv as _load_dotenv
+        
+        if env_file is None:
+            # Look for .env file in project root (2 levels up from this file)
+            project_root = Path(__file__).parent.parent
+            env_file = project_root / ".env"
+        
+        if Path(env_file).exists():
+            _load_dotenv(env_file)
+            try:
+                from rich import print as rich_print
+                rich_print(f"[bold green]Loaded environment variables from [cyan]{env_file}[/cyan][/bold green]\n")
+            except ImportError:
+                print(f"Loaded environment variables from {env_file}")
+            logger = logging.getLogger("tron_ai.config")
+            logger.info(f"Loaded environment variables from {env_file}")
+        else:
+            logger = logging.getLogger("tron_ai.config")
+            logger.debug(f"No .env file found at {env_file}")
+            
+    except ImportError:
+        logger = logging.getLogger("tron_ai.config")
+        logger.warning("python-dotenv not installed. Skipping .env file loading.")
+
+# Load .env file early in the configuration process
+load_dotenv()
+
+def load_env_file(env_file: str) -> None:
+    """
+    Load environment variables from a specific .env file.
+    
+    Args:
+        env_file: Path to the .env file to load.
+    """
+    load_dotenv(env_file)
+
+def get_env_path() -> Path:
+    """
+    Get the default path where the .env file should be located.
+    
+    Returns:
+        Path to the default .env file location.
+    """
+    return Path(__file__).parent.parent / ".env"
 
 # --- Logging Configuration ---
 # Default logging levels are defined below.

@@ -1,10 +1,26 @@
-from tron_ai.agents.productivity.google.utils import get_gmail_service, get_calendar_service
 import re
 import logging
 
 logger = logging.getLogger(__name__)
 
 class GoogleTools:
+    _gmail_service = None
+    _calendar_service = None
+    
+    @classmethod
+    def _get_gmail_service(cls):
+        if cls._gmail_service is None:
+            from tron_ai.agents.productivity.google.utils import get_gmail_service
+            cls._gmail_service = get_gmail_service()
+        return cls._gmail_service
+    
+    @classmethod
+    def _get_calendar_service(cls):
+        if cls._calendar_service is None:
+            from tron_ai.agents.productivity.google.utils import get_calendar_service
+            cls._calendar_service = get_calendar_service()
+        return cls._calendar_service
+    
     @staticmethod
     def _clean_snippet(snippet: str) -> str:
         """Clean up email snippet by removing excessive whitespace and special characters."""
@@ -46,7 +62,7 @@ class GoogleTools:
                 assert False, "list_messages called without session_id. Session tracking will break."
         logger.info(f"list_messages called with max_results={max_results}, q='{q}', label_ids={label_ids}")
         
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         params = {
             "userId": user_id,
             "maxResults": max_results,
@@ -97,7 +113,7 @@ class GoogleTools:
         Returns:
             dict: Message details (subject, from, snippet, body if available).
         """
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         params = {
             "userId": user_id,
             "id": message_id,
@@ -192,7 +208,7 @@ class GoogleTools:
             list: List of event dicts with id, summary, start, end, and description.
         """
         import datetime
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         
         # Get current time in ISO format
         now = datetime.datetime.utcnow().isoformat() + 'Z'
@@ -264,7 +280,7 @@ class GoogleTools:
             list: List of event dicts with id, summary, start, end, and description.
         """
         import datetime
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         
         # If no time range specified, search both past and future events
         if time_min is None and time_max is None:
@@ -364,7 +380,7 @@ class GoogleTools:
                   guests_can_see_other_guests, reminders, conference_data, hangout_link, 
                   meet_link, source, attachments, event_type, color_id, locked).
         """
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         event = service.events().get(
             calendarId=calendar_id,
             eventId=event_id,
@@ -456,7 +472,7 @@ class GoogleTools:
         Returns:
             dict: Created event details.
         """
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         
         # Build event body
         event_body = {
@@ -563,7 +579,7 @@ class GoogleTools:
         Returns:
             dict: Updated event details.
         """
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         
         # First, get the current event to preserve existing data
         current_event = service.events().get(calendarId=calendar_id, eventId=event_id).execute()
@@ -645,7 +661,7 @@ class GoogleTools:
         Returns:
             dict: Confirmation of deletion with event_id.
         """
-        service = get_calendar_service()
+        service = GoogleTools._get_calendar_service()
         
         try:
             service.events().delete(
@@ -725,7 +741,7 @@ class GoogleTools:
                 )
                 message.attach(part)
         raw = base64.urlsafe_b64encode(message.as_bytes()).decode()
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         sent = service.users().messages().send(
             userId=user_id, body={"raw": raw}
         ).execute()
@@ -768,7 +784,7 @@ class GoogleTools:
         from email import encoders
         import os
         
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         
         # Get the original message to extract threading information
         original_msg = service.users().messages().get(
@@ -932,7 +948,7 @@ On {original_date}, {original_from} wrote:
         Returns:
             dict: Modified message metadata.
         """
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         body = {}
         if add_label_ids:
             body["addLabelIds"] = add_label_ids
@@ -952,7 +968,7 @@ On {original_date}, {original_from} wrote:
             dict: Trashed message metadata.
         """
         try:
-            service = get_gmail_service()
+            service = GoogleTools._get_gmail_service()
             response = service.users().messages().trash(userId=user_id, id=message_id).execute()
         except Exception as e:
             response = None
@@ -971,5 +987,5 @@ On {original_date}, {original_from} wrote:
         Returns:
             dict: Untrashed message metadata.
         """
-        service = get_gmail_service()
+        service = GoogleTools._get_gmail_service()
         return service.users().messages().untrash(userId=user_id, id=message_id).execute()

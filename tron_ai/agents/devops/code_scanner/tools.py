@@ -1,11 +1,4 @@
-import os
-import glob
 from typing import List, Dict
-import tree_sitter_python as tspy
-import tree_sitter
-import networkx as nx
-import json
-from neo4j import GraphDatabase
 
 class CodeScannerTools:
     @staticmethod
@@ -20,6 +13,8 @@ class CodeScannerTools:
         Returns:
             List[str]: List of matching file paths.
         """
+        import os
+        import glob
         return glob.glob(os.path.join(directory, '**', file_pattern), recursive=True)
     
     @staticmethod
@@ -47,6 +42,8 @@ class CodeScannerTools:
         Returns:
             Dict[str, List[Dict[str, str]]]: Structured map with 'functions', 'classes', 'imports'.
         """
+        import tree_sitter_python as tspy
+        import tree_sitter
         language = tree_sitter.Language(tspy.language())
         parser = tree_sitter.Parser()
         parser.language = language
@@ -88,7 +85,7 @@ class CodeScannerTools:
         return {file: CodeScannerTools.parse_file(file) for file in files if file.endswith('.py')} 
     
     @staticmethod
-    def build_dependency_graph(directory: str) -> nx.DiGraph:
+    def build_dependency_graph(directory: str):
         """
         Build a dependency graph for the repository using NetworkX.
         
@@ -98,6 +95,7 @@ class CodeScannerTools:
         Returns:
             nx.DiGraph: The constructed graph.
         """
+        import networkx as nx
         structure_map = CodeScannerTools.build_structure_map(directory)
         G = nx.DiGraph()
         for file_path, structure in structure_map.items():
@@ -113,16 +111,16 @@ class CodeScannerTools:
             for imp in structure.get('imports', []):
                 imp_module = imp['module']
                 G.add_edge(file_path, imp_module, type='import')
-            
-            # Compute PageRank
-            ranks = nx.pagerank(G)
-            for node in G.nodes:
-                G.nodes[node]['pagerank'] = ranks.get(node, 0.0)
-            
-            return G
+        
+        # Compute PageRank
+        ranks = nx.pagerank(G)
+        for node in G.nodes:
+            G.nodes[node]['pagerank'] = ranks.get(node, 0.0)
+        
+        return G
     
     @staticmethod
-    def store_graph_to_neo4j(graph: nx.DiGraph, graph_name: str = 'RepoGraph') -> str:
+    def store_graph_to_neo4j(graph, graph_name: str = 'RepoGraph') -> str:
         """
         Store a NetworkX graph in Neo4j.
         
@@ -133,6 +131,8 @@ class CodeScannerTools:
         Returns:
             str: Confirmation message.
         """
+        import os
+        from neo4j import GraphDatabase
         uri = os.getenv('NEO4J_URI', 'bolt://localhost:7687')
         user = os.getenv('NEO4J_USER', 'neo4j')
         password = os.getenv('NEO4J_PASSWORD')
@@ -170,6 +170,9 @@ class CodeScannerTools:
         Returns:
             str: JSON string of relevant nodes.
         """
+        import os
+        import json
+        from neo4j import GraphDatabase
         uri = os.getenv('NEO4J_URI', 'bolt://localhost:7687')
         user = os.getenv('NEO4J_USER', 'neo4j')
         password = os.getenv('NEO4J_PASSWORD')
