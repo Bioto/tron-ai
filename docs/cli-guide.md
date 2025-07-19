@@ -12,7 +12,7 @@
 
 ## Overview
 
-The Tron AI CLI provides a powerful interface for interacting with the AI orchestration framework. It supports multiple execution modes, from simple completions to complex multi-agent tasks.
+The Tron AI CLI provides an interface for interacting with AI agents for various tasks including productivity, development, and business operations. It supports single queries, interactive chats, repository scanning, and database management for conversation history.
 
 ### CLI Architecture
 
@@ -20,29 +20,33 @@ The Tron AI CLI provides a powerful interface for interacting with the AI orches
 graph TD
     subgraph "CLI Entry Points"
         ASK[tron-ai ask]
-        ASST[tron-ai assistant]
-        CHAIN[tron-ai chain]
-        AGENT[tron-ai agent]
+        CHAT[tron-ai chat]
+        SCAN[tron-ai scan_repo]
+        WATCH[tron-ai scan_repo_watch]
+        DB[tron-ai db]
     end
     
     subgraph "Command Handlers"
         AH[Ask Handler]
-        ASH[Assistant Handler]
-        CH[Chain Handler]
-        AGH[Agent Handler]
+        CH[Chat Handler]
+        SH[Scan Handler]
+        WH[Watch Handler]
+        DH[DB Handler]
     end
     
     subgraph "Execution Modes"
         CE[Completion Executor]
         IE[Interactive Executor]
-        CHE[Chain Executor]
-        AE[Agent Executor]
+        SE[Scan Executor]
+        WE[Watch Executor]
+        DE[DB Operations]
     end
     
     ASK --> AH --> CE
-    ASST --> ASH --> IE
-    CHAIN --> CH --> CHE
-    AGENT --> AGH --> AE
+    CHAT --> CH --> IE
+    SCAN --> SH --> SE
+    WATCH --> WH --> WE
+    DB --> DH --> DE
 ```
 
 ## Installation & Setup
@@ -72,8 +76,11 @@ cat > .env << EOF
 # Required
 OPENAI_API_KEY=your-openai-api-key
 
-# Optional
-PERPLEXITY_API_KEY=your-perplexity-api-key
+# Optional for specific agents
+GROQ_API_KEY=your-groq-api-key  # For chat command
+TODOIST_API_TOKEN=your-todoist-token
+NOTION_API_TOKEN=your-notion-token
+GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json
 
 # Logging
 TRON_LOG_LEVEL_ROOT=WARNING
@@ -90,426 +97,208 @@ graph LR
     subgraph "tron-ai CLI"
         CLI[tron-ai]
         CLI --> ASK[ask]
-        CLI --> ASST[assistant]
-        CLI --> CHAIN[chain]
-        CLI --> AGENT[agent]
-        CLI --> LIST[list-mcp-agents]
-        CLI --> TEST[test-agent-executor]
+        CLI --> CHAT[chat]
+        CLI --> SCAN[scan_repo]
+        CLI --> WATCH[scan_repo_watch]
+        CLI --> DB[db]
         
-        ASK --> ASKDESC[Simple Q&A with Memory]
-        ASST --> ASSTDESC[Interactive Chat with History]
-        CHAIN --> CHAINDESC[Predefined Story Generation]
-        AGENT --> AGENTDESC[MCP Agent Execution]
-        LIST --> LISTDESC[List Available MCP Agents]
-        TEST --> TESTDESC[Test Agent Executor]
+        DB --> DBINIT[init]
+        DB --> DBCLEAN[cleanup]
+        DB --> DBSTATS[stats]
+        DB --> DBSHOW[show]
+        
+        ASK --> ASKDESC[Simple query with agent]
+        CHAT --> CHATDESC[Interactive chat with agent]
+        SCAN --> SCANDESC[Scan repository]
+        WATCH --> WATCHDESC[Watch repository for changes]
+        DBINIT --> INITDESC[Initialize database]
+        DBCLEAN --> CLEANDESC[Cleanup old conversations]
+        DBSTATS --> STATSDESC[Show statistics]
+        DBSHOW --> SHOWDESC[Show conversation details]
     end
 ```
 
 ### 1. Ask Command
 
-Simple one-off questions with memory integration.
+Execute a single query with an agent.
 
 ```bash
 # Basic usage
-tron-ai ask "What is quantum computing?"
+tron-ai ask "What is quantum computing?" --agent generic
 
-# The ask command uses gpt-4o model and includes memory storage/retrieval
-# Note: No additional options like --model or --json are currently available
+# With specific agent
+tron-ai ask "Check my emails" --agent google
+
+# Available agents: generic, tron, google
 ```
 
-### 2. Assistant Command
+### 2. Chat Command
 
-Interactive chat with memory persistence and conversation history.
+Start an interactive chat session with an agent.
 
 ```bash
-# Start interactive session
-tron-ai assistant
-
 # Start with initial query
-tron-ai assistant "Tell me about AI"
+tron-ai chat "Tell me about AI" --agent tron
 
-# Note: Uses gpt-4o model, includes memory tools, and maintains conversation context
-# No additional options like --model or --memory-limit are currently available
+# Available agents: generic, tron, google, ssh, todoist, notion, marketing_strategy, sales, customer_success, product_management, financial_planning, ai_ethics, content_creation, community_relations
 ```
 
-### 3. Chain Command
+### 3. Scan Repo Command
 
-Execute a predefined multi-step story generation chain.
+Scan a local repository and build dependency graph.
 
 ```bash
-# Run the chain command (no arguments)
-tron-ai chain
+# Basic scan
+tron-ai scan_repo /path/to/repo
 
-# This executes a hardcoded story generation workflow about a dog detective
-# The chain includes 9 predefined steps from character creation to final story
-# Note: Currently not configurable - runs a fixed story generation sequence
+# With output
+tron-ai scan_repo /path/to/repo --output graph.json
+
+# Store in Neo4j
+tron-ai scan_repo /path/to/repo --store-neo4j
 ```
 
-### 4. Agent Command
+### 4. Scan Repo Watch Command
 
-Execute complex tasks using MCP (Model Context Protocol) agents.
+Watch and periodically scan a repository for updates.
 
 ```bash
-# Basic agent execution
-tron-ai agent "Analyze the Python files in this directory"
+# Basic watch
+tron-ai scan_repo_watch /path/to/repo
 
-# Optional: Save output to markdown file
-tron-ai agent "Create a web scraper" --output
-tron-ai agent "Analyze and document this codebase" -o
+# With interval
+tron-ai scan_repo_watch /path/to/repo --interval 60
 
-# Note: Uses MCP agents loaded from mcp_servers.json configuration
-# The --agents and --parallel options are not currently available
+# Store updates in Neo4j
+tron-ai scan_repo_watch /path/to/repo --store-neo4j
 ```
 
-### 5. List MCP Agents Command
+### 5. DB Commands
 
-List all available MCP agents and their status.
-
-```bash
-# List all MCP agents
-tron-ai list-mcp-agents
-
-# Shows agent names and initialization status
-# Useful for debugging MCP configuration
-```
-
-### 6. Test Agent Executor Command
-
-Test the agent executor functionality with a simple query.
+Manage the conversation history database.
 
 ```bash
-# Test agent executor
-tron-ai test-agent-executor
+# Initialize database
+tron-ai db init
 
-# Runs a test query "What is the capital of France?" through the delegate executor
-# Useful for verifying agent system is working correctly
+# Cleanup old conversations
+tron-ai db cleanup --days 30
+
+# Show statistics
+tron-ai db stats --days 7
+
+# Show specific conversation
+tron-ai db show <session_id>
 ```
 
 ## Command Flow Diagrams
 
-### Ask Command Flow
+### Chat Command Flow
 
 ```mermaid
 sequenceDiagram
     participant User
     participant CLI
-    participant CompletionExecutor
+    participant AgentExecutor
     participant LLMClient
-    participant OpenAI
+    participant DB
     
-    User->>CLI: tron-ai ask "question"
-    CLI->>CompletionExecutor: Create executor
-    CompletionExecutor->>LLMClient: Build request
-    LLMClient->>OpenAI: API call
-    OpenAI-->>LLMClient: Response
-    LLMClient-->>CompletionExecutor: Parsed response
-    CompletionExecutor-->>CLI: Result
-    CLI-->>User: Display answer
-```
-
-### Assistant Command Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant CLI
-    participant Assistant
-    participant Memory
-    participant LLMClient
-    
-    User->>CLI: tron-ai assistant
-    CLI->>Assistant: Initialize session
-    Assistant->>Memory: Load past context
-    
-    loop Interactive Session
+    User->>CLI: tron-ai chat "query" --agent
+    CLI->>DB: Get/Create Conversation
+    DB-->>CLI: Conversation ID
+    loop Chat Session
         User->>CLI: Input message
-        CLI->>Memory: Query relevant memories
-        Memory-->>CLI: Related context
-        CLI->>LLMClient: Request with context
-        LLMClient-->>CLI: Response
-        CLI->>Memory: Store interaction
+        CLI->>DB: Add User Message
+        CLI->>AgentExecutor: Execute with context
+        AgentExecutor->>LLMClient: Call with tools
+        LLMClient-->>AgentExecutor: Response
+        AgentExecutor-->>CLI: Result
+        CLI->>DB: Add Assistant Message
+        CLI->>DB: Add Agent Session
         CLI-->>User: Display response
     end
-    
     User->>CLI: exit
-    CLI->>Memory: Save session
-    CLI->>Assistant: Cleanup
+    CLI->>DB: Update Conversation
 ```
 
-### Agent Command Flow
+### Scan Repo Flow
 
 ```mermaid
-flowchart TD
-    subgraph "Agent Execution Flow"
-        START[User Query] --> ANALYZE[Analyze Task]
-        ANALYZE --> SELECT{Select Agents}
-        
-        SELECT --> SINGLE[Single Agent]
-        SELECT --> MULTI[Multiple Agents]
-        
-        SINGLE --> EXEC1[Execute Agent]
-        MULTI --> PARALLEL{Parallel?}
-        
-        PARALLEL -->|Yes| ASYNC[Async Execution]
-        PARALLEL -->|No| SEQ[Sequential Execution]
-        
-        ASYNC --> WAIT[Wait for All]
-        SEQ --> EXEC2[Execute One by One]
-        
-        EXEC1 --> RESULT[Agent Results]
-        WAIT --> COMBINE[Combine Results]
-        EXEC2 --> COMBINE
-        
-        RESULT --> FORMAT[Format Output]
-        COMBINE --> FORMAT
-        FORMAT --> DISPLAY[Display to User]
+sequenceDiagram
+    participant User
+    participant CLI
+    participant CodeScannerAgent
+    participant Tools
+    participant Neo4j
+    
+    User->>CLI: tron-ai scan_repo dir --options
+    CLI->>CodeScannerAgent: Scan query
+    CodeScannerAgent->>Tools: build_dependency_graph
+    Tools-->>CodeScannerAgent: Graph
+    opt store-neo4j
+        CodeScannerAgent->>Tools: store_graph_to_neo4j
+        Tools->>Neo4j: Store
     end
+    CodeScannerAgent-->>CLI: Results
+    CLI-->>User: Display
 ```
 
 ## Usage Examples
 
-### Example 1: Code Analysis
+### Interactive Chat with Agent
 
 ```bash
-# Analyze a Python file
-tron-ai agent "Analyze app.py for security issues and performance"
+# Start chat with Tron agent
+tron-ai chat "Help me plan my day" --agent tron
 
-# Output includes:
-# - Security vulnerabilities found
-# - Performance bottlenecks
-# - Suggested improvements
-# - Code quality metrics
+# Chat with Todoist agent
+tron-ai chat "Show my tasks" --agent todoist
 ```
 
-### Example 2: Project Documentation
+### Repository Scanning
 
 ```bash
-# Generate comprehensive documentation
-tron-ai agent "Create documentation for this Python project"
-
-# The agent will:
-# 1. Scan all Python files
-# 2. Extract docstrings and comments
-# 3. Analyze code structure
-# 4. Generate README sections
-# 5. Create API documentation
+# Scan and store graph
+tron-ai scan_repo . --output repo_graph.json --store-neo4j
 ```
 
-### Example 3: Interactive Learning
+### Database Management
 
 ```bash
-# Start learning session
-tron-ai assistant "I want to learn about machine learning"
+# View stats
+tron-ai db stats --agent tron --days 7
 
-# You can then ask follow-up questions:
-> "What are neural networks?"
-> "Show me a simple example in Python"
-> "What are the prerequisites?"
-> "Recommend learning resources"
-```
-
-### Example 4: Complex Task Orchestration
-
-```bash
-# Multi-agent task
-tron-ai agent "Create a REST API with authentication and tests"
-
-# Agents coordinate to:
-# - CodeAgent: Generate API structure
-# - FileAgent: Create necessary files
-# - CodeAgent: Implement authentication
-# - CodeAgent: Generate tests
-# - DockerAgent: Create Dockerfile
+# Cleanup
+tron-ai db cleanup --days 90
 ```
 
 ## Advanced Features
 
-### Memory Management
+### Agent Selection
 
-```mermaid
-graph TD
-    subgraph "Memory Features"
-        STORE[Auto-store Conversations]
-        QUERY[Query Past Context]
-        FILTER[Time-based Filtering]
-        RELEVANT[Relevance Matching]
-    end
-    
-    subgraph "Memory Queries"
-        TODAY["Show today's memories"]
-        WEEK["Memories from this week"]
-        TOPIC["Memories about 'topic'"]
-        CUSTOM["Custom time range"]
-    end
-    
-    STORE --> ChromaDB[(ChromaDB)]
-    QUERY --> ChromaDB
-    FILTER --> QUERY
-    RELEVANT --> QUERY
-    
-    TODAY --> FILTER
-    WEEK --> FILTER
-    TOPIC --> RELEVANT
-    CUSTOM --> FILTER
-```
+Different agents provide specialized capabilities:
+- **tron**: General AI assistant
+- **google**: Email and calendar management
+- **todoist**: Task management
+- **notion**: Knowledge management
+- Business agents: marketing_strategy, sales, etc.
 
-### Tool Integration
+### Database Integration
 
-```bash
-# List available tools
-tron-ai tools list
-
-# Execute with specific tools
-tron-ai agent "Task" --tools file_manager,memory
-
-# Disable certain tools
-tron-ai agent "Task" --disable-tools docker
-```
-
-### Logging Configuration
-
-```bash
-# Set logging levels via environment
-export TRON_LOG_LEVEL_ROOT=WARNING
-export TRON_LOG_LEVEL_tron-ai=DEBUG
-export TRON_LOG_LEVEL_ADALFLOW=INFO
-
-# Or use CLI flags
-tron-ai --log-level DEBUG agent "Task"
-```
+All chat sessions are stored in SQLite database for history and analytics.
 
 ## Troubleshooting
 
 ### Common Issues
 
-#### 1. API Key Errors
+#### Missing API Keys
 
-```mermaid
-flowchart TD
-    ERROR[API Key Error] --> CHECK{Check .env}
-    CHECK -->|Missing| CREATE[Create .env file]
-    CHECK -->|Present| VERIFY[Verify key format]
-    
-    CREATE --> ADD[Add OPENAI_API_KEY]
-    VERIFY -->|Invalid| REGENERATE[Regenerate key]
-    VERIFY -->|Valid| RESTART[Restart shell]
-```
+Ensure required environment variables are set for specific agents.
 
-#### 2. Memory Errors
+#### Database Errors
 
-```bash
-# Reset memory database
-rm -rf chroma/
+Run `tron-ai db init` to initialize database.
 
-# Reinitialize
-tron-ai assistant "Hello"  # Will create new DB
-```
+#### Connection Issues
 
-#### 3. Timeout Issues
-
-```bash
-# Increase timeout for long operations
-export TIMEOUT_MCP_AGENT=300  # 5 minutes
-export TIMEOUT_COMPLETION=120  # 2 minutes
-```
-
-### Debug Mode
-
-```bash
-# Enable debug output
-tron-ai --debug agent "Complex task"
-
-# View detailed logs
-tail -f logs/tron-ai.log
-```
-
-### Performance Tips
-
-1. **Use appropriate executors**
-   - `ask` for simple questions
-   - `assistant` for conversational tasks
-   - `agent` for complex operations
-
-2. **Optimize agent selection**
-   ```bash
-   # Specify only needed agents
-   tron-ai agent "Write Python code" --agents code,file
-   ```
-
-3. **Leverage parallelization**
-   ```bash
-   # For independent tasks
-   tron-ai agent "Analyze multiple files" --parallel
-   ```
-
-## Best Practices
-
-### 1. Query Formulation
-
-```mermaid
-graph LR
-    subgraph "Good Queries"
-        SPECIFIC[Be Specific]
-        CONTEXT[Provide Context]
-        GOAL[State Clear Goal]
-    end
-    
-    subgraph "Examples"
-        GOOD1["'Analyze security in auth.py'"]
-        GOOD2["'Create REST API with JWT auth'"]
-        GOOD3["'Fix the TypeError in line 42'"]
-    end
-    
-    SPECIFIC --> GOOD1
-    CONTEXT --> GOOD2
-    GOAL --> GOOD3
-```
-
-### 2. Memory Usage
-
-- Use memory for context-dependent tasks
-- Clear memory periodically for performance
-- Query specific time ranges when needed
-
-### 3. Error Handling
-
-- Always check logs for detailed errors
-- Use debug mode for complex issues
-- Report persistent errors with logs
-
-## Integration Examples
-
-### Shell Scripts
-
-```bash
-#!/bin/bash
-# analyze_project.sh
-
-# Analyze all Python files
-for file in $(find . -name "*.py"); do
-    echo "Analyzing $file..."
-    tron-ai agent "Analyze $file for issues" --quiet
-done
-```
-
-### Python Integration
-
-```python
-import subprocess
-import json
-
-def analyze_code(filepath):
-    """Use Tron AI to analyze code."""
-    result = subprocess.run(
-        ["tron-ai", "agent", f"Analyze {filepath}", "--json"],
-        capture_output=True,
-        text=True
-    )
-    return json.loads(result.stdout)
-
-# Usage
-analysis = analyze_code("app.py")
-print(analysis["security_issues"])
-```
-
-This guide provides comprehensive coverage of the Tron AI CLI, from basic usage to advanced features and troubleshooting. 
+Check logging levels and environment configuration. 

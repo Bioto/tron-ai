@@ -1,125 +1,118 @@
 # Tron AI
 
-An advanced AI-powered agent orchestration framework built on top of AdalFlow and OpenAI. Tron AI provides a flexible architecture for coordinating multiple specialized agents to complete complex tasks through an intuitive CLI interface.
+AI agent framework with specialized agents for business, devops, and productivity tasks, featuring multi-agent orchestration via swarm executor.
 
 ## 📚 Documentation
 
-For comprehensive documentation, please visit:
-
-- **[📖 Full Documentation](docs/index.md)** - Complete documentation hub
-- **[🏗️ Architecture Overview](docs/architecture.md)** - System design and components
-- **[💻 CLI Guide](docs/cli-guide.md)** - Detailed command usage
-- **[🤖 Agents Documentation](docs/agents.md)** - Agent system guide
-- **[🔧 API Reference](docs/api.md)** - Complete API documentation
-- **[👩‍💻 Development Guide](docs/development.md)** - Setup and contribution guide
+- [Full Documentation](docs/index.md)
+- [Architecture](docs/architecture.md)
+- [CLI Guide](docs/cli-guide.md)
+- [Agents](docs/agents.md)
+- [API Reference](docs/api.md)
+- [Development Guide](docs/development.md)
 
 ## Table of Contents
 
-- [Features](#features)
-- [Quick Start](#quick-start)
-- [Basic Usage](#basic-usage)
-- [Development](#development)
-- [Contributing](#contributing)
-- [License](#license)
+- [Tron AI](#tron-ai)
+  - [📚 Documentation](#-documentation)
+  - [Table of Contents](#table-of-contents)
+  - [Features](#features)
+  - [Quick Start](#quick-start)
+    - [Prerequisites](#prerequisites)
+    - [Installation](#installation)
+    - [Environment Setup](#environment-setup)
+  - [Basic Usage](#basic-usage)
+  - [CLI Commands](#cli-commands)
+  - [Agent Categories](#agent-categories)
+  - [Development](#development)
+    - [Quick Setup](#quick-setup)
+    - [Project Structure](#project-structure)
+  - [Contributing](#contributing)
+  - [License](#license)
+  - [Acknowledgments](#acknowledgments)
 
 ## Features
 
-- 🤖 **Multi-Agent Orchestration**: Coordinate multiple specialized agents (Code, Docker, File, MCP, Search) to solve complex tasks
-- 🔧 **Flexible Executor Pattern**: Clean abstraction for different execution strategies (Completion, Chain, Agent-based)
-- 🧠 **Memory Management**: Built-in vector database for context retention across conversations
-- 🛠️ **Tool Management**: Dynamic tool loading and execution with proper error handling
-- 📊 **Rich CLI Interface**: Interactive chat sessions with memory persistence
-- 🔒 **Type Safety**: Extensive use of Pydantic models for data validation
-- 📝 **Comprehensive Logging**: Configurable logging with environment variable overrides
+- 🤖 **Multi-Agent Orchestration**: Swarm executor for task delegation
+- 🔧 **Specialized Agents**: Business, DevOps, Productivity domains
+- 🧠 **Database Integration**: Conversation history persistence
+- 🛠️ **MCP Support**: Dynamic tool discovery
+- 📊 **CLI Interface**: Interactive chats and repo scanning
+- 🔒 **Task Management**: Dependency-aware execution
 
 ## Quick Start
 
 ### Prerequisites
 
-- Python 3.12 or higher
+- Python 3.12+
 - OpenAI API key
-- Perplexity API key (optional, for search functionality)
+- Additional keys for specific agents (Groq, Todoist, Notion, Google)
 
 ### Installation
 
 ```bash
-# Clone the repository
 git clone https://github.com/yourusername/tron-ai.git
 cd tron-ai
-
-# Create a virtual environment
 python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Install dependencies
-pip install -e .
+source .venv/bin/activate
+uv sync  # or pip install -e .
 ```
 
 ### Environment Setup
 
-Create a `.env` file in the project root:
-
 ```bash
-# Required
-OPENAI_API_KEY=your-openai-api-key
+OPENAI_API_KEY=your-openai-key
+GROQ_API_KEY=your-groq-key  # For chat
+TODOIST_API_TOKEN=your-todoist-token
+NOTION_API_TOKEN=your-notion-token
+GOOGLE_APPLICATION_CREDENTIALS=path/to/credentials.json
 
-# Optional
-PERPLEXITY_API_KEY=your-perplexity-api-key
-
-# Logging (optional)
-TRON_LOG_LEVEL_ROOT=WARNING
-TRON_LOG_LEVEL_tron-ai=INFO
+# Logging
+TRON_LOG_LEVEL_ROOT=INFO
 ```
 
 ## Basic Usage
 
 ```bash
-# Simple question
-tron-ai ask "What is the capital of France?"
+# Simple query
+tron-ai ask "Explain AI" --agent generic
 
-# Interactive assistant
-tron-ai assistant
+# Interactive chat
+tron-ai chat "Plan my day" --agent tron
 
-# Complex task with agents
-tron-ai agent "Analyze the security vulnerabilities in my Python code"
+# Scan repository
+tron-ai scan_repo .
 ```
 
 ## CLI Commands
 
 | Command | Description | Example |
 |---------|-------------|---------|
-| `ask` | Simple one-off questions | `tron-ai ask "What is Python?"` |
-| `assistant` | Interactive chat with memory | `tron-ai assistant` |
-| `chain` | Multi-step reasoning | `tron-ai chain` |
-| `agent` | Complex tasks with agents | `tron-ai agent "Create a web scraper"` |
+| `ask` | Single query | `tron-ai ask "Query" --agent tron` |
+| `chat` | Interactive session | `tron-ai chat "Initial query" --agent google` |
+| `scan_repo` | Scan repository | `tron-ai scan_repo /path --output json` |
+| `scan_repo_watch` | Watch for changes | `tron-ai scan_repo_watch /path` |
+| `db` | Database management | `tron-ai db stats` |
 
-For detailed command usage, see the [CLI Guide](docs/cli-guide.md).
+See [CLI Guide](docs/cli-guide.md) for details.
 
-## Built-in Agents
+## Agent Categories
 
-- 🔍 **Code Agent**: Code analysis, formatting, test generation
-- 🐳 **Docker Agent**: Container lifecycle management
-- 📁 **File Agent**: File system operations
-- 🔌 **MCP Agent**: Model Context Protocol integration
-- 🌐 **Search Agent**: Web search capabilities
+- **Business**: Marketing, Sales, etc.
+- **DevOps**: Code Scanner, SSH, etc.
+- **Productivity**: Google, Todoist, Notion
+- **Core**: Tron orchestrator
 
-Learn more in the [Agents Documentation](docs/agents.md).
+See [Agents Documentation](docs/agents.md).
 
 ## Development
 
 ### Quick Setup
 
 ```bash
-# Install development dependencies
 pip install -e ".[dev,test]"
-
-# Run tests
 make test
-
-# Format code
 make ruff-format
-
-# Run linter
 make ruff
 ```
 
@@ -127,59 +120,46 @@ make ruff
 
 ```
 tron-ai/
-├── tron-ai/            # Main package
-├── tests/              # Test suite
-├── docs/               # Documentation
-└── pyproject.toml      # Project configuration
+  - alembic.ini
+  - docs/
+  - LICENSE.md
+  - Makefile
+  - mcp_servers.json
+  - pyproject.toml
+  - pytest.ini
+  - README.md
+  - tron_ai/
+    - agents/
+    - cli.py
+    - config.py
+    - constants.py
+    - database/
+    - exceptions.py
+    - executors/
+    - models/
+    - modules/
+    - processors/
+    - test_gmail.py
+    - utils/
+    - vendor/
+  - uv.lock
 ```
 
-For detailed development instructions, see the [Development Guide](docs/development.md).
-
-## Testing
-
-```bash
-# Run all tests
-make test
-
-# Run with coverage
-make test-coverage
-
-# Run specific tests
-pytest tests/executors/test_completion.py -v
-
-# See all make commands
-make help
-```
+See [Development Guide](docs/development.md).
 
 ## Contributing
 
-We welcome contributions! Please see our [Development Guide](docs/development.md) for:
-
-- Development setup
-- Code standards
-- Testing requirements
-- Pull request process
-
-### Quick Contribution Steps
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes and add tests
-4. Run tests and linting (`make test && make ruff`)
-5. Commit changes (`git commit -m 'feat: add amazing feature'`)
-6. Push to branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
+See [Development Guide](docs/development.md).
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT License - see LICENSE.
 
 ## Acknowledgments
 
-- Built on [AdalFlow](https://github.com/SylphAI-Inc/AdalFlow) framework
-- Powered by OpenAI's GPT models
-- Search capabilities via Perplexity API
+- Powered by OpenAI/Groq
+- Integrates Todoist/Notion/Google
 
 ---
 
-For more information, visit our [complete documentation](docs/index.md).
+For more, see [documentation](docs/index.md).

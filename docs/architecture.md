@@ -9,144 +9,87 @@
 5. [Memory Management](#memory-management)
 6. [Tool System](#tool-system)
 7. [Error Handling](#error-handling)
+8. [Database](#database)
+9. [Modules](#modules)
+10. [Processors](#processors)
 
 ## System Overview
 
-Tron AI is a modular AI orchestration framework that coordinates multiple specialized agents to solve complex tasks. The system is built on a layered architecture with clear separation of concerns.
+Tron AI is a modular framework with agents, executors, database, and various modules.
 
 ```mermaid
 graph TB
-    subgraph "User Interface Layer"
-        CLI[CLI Interface]
-        API[API Endpoints]
+    subgraph "User Interface"
+        CLI[CLI]
     end
     
-    subgraph "Orchestration Layer"
-        EM[Executor Manager]
+    subgraph "Executors"
+        BE[Base Executor]
+        AE[Agent Executor]
         CE[Completion Executor]
         CHE[Chain Executor]
-        AE[Agent Executor]
+        SE[Swarm Executor]
     end
     
-    subgraph "Agent Layer"
-        CA[Code Agent]
-        DA[Docker Agent]
-        FA[File Agent]
-        MA[MCP Agent]
-        SA[Search Agent]
+    subgraph "Agents"
+        TA[Tron Agent]
+        BA[Business Agents]
+        DA[DevOps Agents]
+        PA[Productivity Agents]
     end
     
-    subgraph "Core Services"
-        LLM[LLM Client]
-        TM[Tool Manager]
-        MM[Memory Manager]
-        CM[Connection Manager]
+    subgraph "Modules"
+        MCP[MCP]
+        SSH[SSH]
+        TASKS[Tasks]
+        A2A[A2A]
     end
     
-    subgraph "Infrastructure"
-        OAI[OpenAI API]
-        CDB[ChromaDB]
-        FS[File System]
-        MCP[MCP Servers]
-        PP[Perplexity API]
+    subgraph "Database"
+        DB[SQLite DB]
     end
     
-    CLI --> EM
-    API --> EM
-    EM --> CE
-    EM --> CHE
-    EM --> AE
+    subgraph "Processors"
+        EP[Embeddings]
+        FP[File Processor]
+    end
     
-    CE --> LLM
-    CHE --> LLM
-    AE --> CA
-    AE --> DA
-    AE --> FA
-    AE --> MA
-    AE --> SA
-    
-    CA --> TM
-    DA --> TM
-    FA --> TM
-    MA --> TM
-    SA --> TM
-    
-    LLM --> OAI
-    MM --> CDB
-    CM --> CDB
-    FA --> FS
-    MA --> MCP
-    SA --> PP
+    CLI --> Executors
+    Executors --> Agents
+    Agents --> Modules
+    Executors --> DB
+    Agents --> Processors
 ```
 
 ## Core Components
 
-### 1. Executors
+### Executors
 
-The executor pattern provides different strategies for task execution:
+- BaseExecutor
+- AgentExecutor
+- ChainExecutor
+- CompletionExecutor
+- SwarmExecutor (for multi-agent orchestration)
 
-```mermaid
-classDiagram
-    class BaseExecutor {
-        <<abstract>>
-        +config: ExecutorConfig
-        +execute()* BaseModel
-    }
-    
-    class CompletionExecutor {
-        +execute() BaseModel
-        -_simple_completion()
-    }
-    
-    class ChainExecutor {
-        +execute() List[BaseModel]
-        -_execute_step()
-    }
-    
-    class AgentExecutor {
-        +agents: List[Agent]
-        +execute() AgentExecutorResponse
-        -_orchestrate_agents()
-        -_execute_parallel()
-        -_execute_sequential()
-    }
-    
-    BaseExecutor <|-- CompletionExecutor
-    BaseExecutor <|-- ChainExecutor
-    BaseExecutor <|-- AgentExecutor
-```
+### Agents
 
-### 2. LLM Client Architecture
+Organized in categories: business, devops, productivity, tron.
 
-The LLM Client provides a unified interface for language model interactions:
+### Modules
 
-```mermaid
-classDiagram
-    class LLMClient {
-        +client: OpenAIClient
-        +config: LLMClientConfig
-        +call() BaseModel
-        +fcall() BaseModel
-        -_build_generator()
-        -_handle_retries()
-    }
-    
-    class LLMClientConfig {
-        +model_name: str
-        +json_output: bool
-        +logging: bool
-    }
-    
-    class ToolManager {
-        +tools: List[Tool]
-        +register_tool()
-        +get_tool()
-        +execute_tool()
-    }
-    
-    LLMClient --> LLMClientConfig
-    LLMClient --> ToolManager
-```
+- MCP: For tool discovery and execution
+- SSH: Remote server management
+- Tasks: Task management with dependencies
+- A2A: Agent-to-agent communication
+
+### Database
+
+SQLite for conversation history, messages, agent sessions.
+
+### Processors
+
+- Embeddings
+- File processing
 
 ## Execution Flow
 

@@ -60,31 +60,32 @@ TRON_LOG_LEVEL_ADALFLOW=INFO
 
 ## Project Structure
 
-```mermaid
-graph TD
-    subgraph "Project Root"
-        ROOT[tron-ai/]
-        ROOT --> SRC[tron-ai/]
-        ROOT --> TESTS[tests/]
-        ROOT --> DOCS[docs/]
-        ROOT --> CONFIG[Configuration Files]
-    end
-    
-    subgraph "Source Code"
-        SRC --> CLI[cli.py]
-        SRC --> EXE[executors/]
-        SRC --> MOD[models/]
-        SRC --> PROM[prompts/]
-        SRC --> TOOLS[tools/]
-        SRC --> UTILS[utils/]
-    end
-    
-    subgraph "Tests"
-        TESTS --> UNIT[Unit Tests]
-        TESTS --> INT[Integration Tests]
-        TESTS --> E2E[E2E Tests]
-    end
-```
+Based on current layout:
+
+tron-ai/
+├── tron_ai/
+│   ├── agents/
+│   │   ├── business/
+│   │   ├── devops/
+│   │   ├── productivity/
+│   │   ├── tron/
+│   ├── cli.py
+│   ├── config.py
+│   ├── constants.py
+│   ├── database/
+│   ├── exceptions.py
+│   ├── executors/
+│   │   ├── swarm/
+│   ├── models/
+│   ├── modules/
+│   │   ├── a2a/
+│   │   ├── mcp/
+│   │   ├── ssh/
+│   │   ├── tasks/
+│   ├── processors/
+│   ├── utils/
+│   ├── vendor/
+└── ...
 
 ### Directory Structure Details
 

@@ -1,431 +1,236 @@
 # Tron AI API Documentation
 
+Executors, agents, models, and related concepts are key building blocks in the Tron AI framework. Below are explanations of each major category, followed by usage examples. These draw from the project's architecture and follow clean code, performance optimization, and domain-driven design principles.
+
 ## Table of Contents
 
 - [Executors](#executors)
-  - [BaseExecutor](#baseexecutor)
-  - [CompletionExecutor](#completionexecutor)
-  - [ChainExecutor](#chainexecutor)
-  - [AgentExecutor](#agentexecutor)
 - [Agents](#agents)
-  - [Agent Base Class](#agent-base-class)
-  - [Built-in Agents](#built-in-agents)
-- [Utils](#utils)
-  - [LLMClient](#llmclient)
-  - [ConnectionManager](#connectionmanager)
 - [Models](#models)
+- [Utils](#utils)
+- [Modules](#modules)
 - [Exceptions](#exceptions)
+- [Constants](#constants)
 
 ## Executors
 
+Executors are the "runners" or orchestration layers in Tron AI that handle how tasks are processed and executed. They take inputs (like user queries or prompts) and coordinate with LLMs, agents, or other components to produce outputs. Think of them as the engine that drives task completion, supporting different execution strategies for flexibility.
+
+- **Purpose**: They abstract away the complexity of running AI tasks, allowing for simple completions, chained operations, or multi-agent swarms.
+- **Why They Matter**: Executors make the system modular—swap them based on task complexity (e.g., use Swarm for collaborative AI, Completion for quick queries).
+
 ### BaseExecutor
 
-Abstract base class for all executors.
+Abstract base class for all executors, providing common configuration and logging.
 
 ```python
 from tron_ai.executors.base import BaseExecutor, ExecutorConfig
 
-class BaseExecutor(ABC):
-    def __init__(self, config: ExecutorConfig, *args, **kwargs):
-        """Initialize base executor.
-        
-        Args:
-            config: Executor configuration including client and optional prompt
-        """
-    
-    @abstractmethod
-    def execute(self, *args, **kwargs) -> BaseModel:
-        """Execute the task. Must be implemented by subclasses."""
+class MyExecutor(BaseExecutor):
+    def execute(self, *args, **kwargs):
+        pass
+```
+
+### AgentExecutor
+
+Handles execution of single or multiple agents, supporting follow-up queries.
+
+```python
+from tron_ai.executors.agent import AgentExecutor
+
+executor = AgentExecutor(config=ExecutorConfig(client=llm_client))
+response = await executor.execute(user_query="Task", agent=my_agent)
 ```
 
 ### CompletionExecutor
 
-Simple completion executor for direct LLM calls.
+Performs simple LLM completions without agents.
 
 ```python
 from tron_ai.executors.completion import CompletionExecutor
 
-executor = CompletionExecutor(config=ExecutorConfig(client=llm_client))
-
-# Basic execution
-response = executor.execute(
-    user_query="What is Python?",
-    tool_manager=None,
-    system_prompt=Prompt(prompt="You are a helpful assistant")
-)
+executor = CompletionExecutor(config=ExecutorConfig(client=llm_client, prompt=my_prompt))
+response = await executor.execute(user_query="Query")
 ```
 
 ### ChainExecutor
 
-Executes multi-step reasoning chains.
+Executes sequences of prompts in a chain.
 
 ```python
 from tron_ai.executors.chain import ChainExecutor, Step
 
 executor = ChainExecutor(config=ExecutorConfig(client=llm_client))
-
-results = executor.execute(
-    "Write a story",
-    steps=[
-        Step(prompt=Prompt(prompt="Create character")),
-        Step(prompt=Prompt(prompt="Develop plot")),
-        Step(prompt=Prompt(prompt="Write story"))
-    ]
-)
+results = executor.execute("Query", steps=[Step(prompt=p1), Step(prompt=p2)])
 ```
 
-### AgentExecutor
+### SwarmExecutor
 
-Orchestrates multiple agents for complex tasks.
+Orchestrates multiple agents using task decomposition and delegation.
 
 ```python
-from tron_ai.executors.agents import AgentExecutor
+from tron_ai.executors.swarm import SwarmExecutor, SwarmState
 
-# Synchronous execution
-executor = AgentExecutor(config=config, agents=[agent1, agent2])
-result = await executor.execute(
-    user_query="Complex task",
-    parallel=False  # Sequential execution
-)
-
-# Parallel execution
-result = await executor.execute(
-    user_query="Complex task",
-    parallel=True  # Parallel execution where possible
-)
+executor = SwarmExecutor(state=SwarmState(agents=my_agents))
+result = await executor.execute(user_query="Complex task")
 ```
 
 ## Agents
 
-### Agent Base Class
+Agents are intelligent "workers" that perform specific tasks using prompts, tools, and reasoning. They're like specialized AI personas that can think, use tools (e.g., APIs, databases), and respond to queries.
+
+- **Purpose**: Agents encapsulate domain-specific logic (e.g., marketing, code scanning) and can be orchestrated by executors.
+- **Why They Matter**: Agents enable modular, reusable AI behaviors. In a swarm, they collaborate (e.g., one agent researches, another analyzes).
+
+### Base Agent
+
+Foundation for all agents, defining name, description, prompt, and tools.
 
 ```python
-from tron_ai.executors.agents.models.agent import Agent
+from tron_ai.models.agent import Agent
+from adalflow.core.tool_manager import ToolManager
+from tron_ai.models.prompts import Prompt
 
-class Agent(BaseModel):
-    name: str
-    description: str
-    prompt: Prompt
-    tools: Optional[ToolManager] = None
-    supports_multiple_operations: bool = True
+agent = Agent(
+    name="MyAgent",
+    description="Description",
+    prompt=Prompt(text="Prompt template"),
+    tool_manager=ToolManager(tools=[])
+)
 ```
 
-### Built-in Agents
+### TronAgent
 
-#### CodeAgent
-
-Analyzes and manipulates code.
+Core orchestration agent that delegates tasks to other agents via swarm.
 
 ```python
-from tron_ai.executors.agents.builtin import CodeAgent
+from tron_ai.agents.tron.agent import TronAgent
 
-agent = CodeAgent()
-# Tools: analyze_code_structure, check_code_quality, format_code,
-#        generate_tests, analyze_dependencies, suggest_improvements
+agent = TronAgent()
 ```
 
-#### DockerAgent
+### GoogleAgent
 
-Manages Docker containers.
+Manages Google services like email and calendar.
 
 ```python
-from tron_ai.executors.agents.builtin import DockerAgent
+from tron_ai.agents.productivity.google.agent import GoogleAgent
 
-agent = DockerAgent()
-# Tools: list_containers, create_container, start_container,
-#        stop_container, remove_container, get_logs, inspect_container
+agent = GoogleAgent()
 ```
 
-#### FileAgent
+<!-- Add similar for other key agents -->
 
-Handles file system operations.
+Add entries for other specialized agents as needed, following the same pattern. Agents are organized by category (e.g., business, devops, productivity) in the codebase.
+
+## Models
+
+Models refer to data structures and configurations that represent core entities in the system. These aren't ML models (like neural nets) but rather Python classes for configs, prompts, tasks, etc.
+
+- **Purpose**: They provide typed, structured ways to define and pass data between components.
+- **Why They Matter**: They ensure consistency and type safety across the app.
+
+### ExecutorConfig
+
+Configuration for executors, including LLM client and logging.
 
 ```python
-from tron_ai.executors.agents.builtin import FileAgent
+from tron_ai.models.executors import ExecutorConfig
 
-agent = FileAgent()
-# Tools: create_file, read_file, update_file, delete_file, list_directory
+config = ExecutorConfig(client=llm_client, logging=True)
 ```
 
-#### MCPAgent
+### Prompt
 
-Model Context Protocol operations.
+Template for LLM prompts with variable substitution.
 
 ```python
-from tron_ai.modules.mcp.agent import Agent as MCPAgent
+from tron_ai.models.prompts import Prompt
 
-# MCP agents are managed through MCPAgentManager
-# See MCPAgentManager section below for usage
+prompt = Prompt(text="Template {var}")
+rendered = prompt.build(var="value")
 ```
 
-#### MCPAgentManager
+### Task
 
-Manages a pool of MCPAgent instances, each connected to a different MCP server. Provides async initialization, dynamic agent addition/removal, and config-based reloading.
+Represents a unit of work with operations and dependencies.
+
+```python
+from tron_ai.modules.tasks.models import Task
+
+task = Task(description="Task desc", operations=["op1", "op2"], agent=my_agent)
+```
+
+## Utils
+
+Utils are helper modules for common operations, often focused on I/O, concurrency, or LLM interactions.
+
+- **Purpose**: Support the main components with reusable functions (e.g., file handling, LLM calls).
+- **Why They Matter**: They optimize performance (e.g., async I/O) and keep the codebase DRY.
+
+### LLMClient
+
+Wrapper for LLM interactions, supporting function calling and retries.
+
+```python
+from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
+from adalflow import OpenAIClient
+
+config = LLMClientConfig(model_name="gpt-4o")
+client = LLMClient(client=OpenAIClient(), config=config)
+response = client.call(user_query="Query", system_prompt=my_prompt)
+```
+
+## Modules
+
+Modules are higher-level features or integrations that build on the core components (e.g., for specific protocols or services).
+
+- **Purpose**: Handle cross-cutting concerns like task management, external connections, or protocols.
+- **Why They Matter**: They extend the core system for real-world integrations (e.g., databases, remote execution).
+
+### MCPAgentManager
+
+Manages multiple MCP agents connected to different servers.
 
 ```python
 from tron_ai.modules.mcp.manager import MCPAgentManager
 
 manager = MCPAgentManager()
-await manager.initialize("mcp_servers.json")  # Load all agents from config
-
-# Get default agent
+await manager.initialize("mcp_servers.json")
 agent = manager.get_default_agent()
-
-# Get agent by name
-agent = manager.get_agent("my-mcp-server")
-
-# Add a new agent
-await manager.add_agent("new-server", server_config)
-
-# Remove an agent
-await manager.remove_agent("old-server")
-
-# Reload all agents
-await manager.reload_agents("mcp_servers.json")
-
-# Cleanup all agents
-await manager.cleanup()
 ```
 
-#### SearchAgent
+### DatabaseManager
 
-Web search capabilities.
-
-```python
-from tron_ai.executors.agents.builtin import SearchAgent
-
-agent = SearchAgent()
-# Tools: search_internet
-```
-
-## Utils
-
-### LLMClient
-
-Wrapper for LLM operations with tool support.
+Handles database operations for conversation history.
 
 ```python
-from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
+from tron_ai.database.manager import DatabaseManager, DatabaseConfig
 
-config = LLMClientConfig(
-    model_name="gpt-4o",
-    json_output=True,
-    logging=False
-)
-
-client = LLMClient(client=OpenAIClient(), config=config)
-
-# Simple call
-response = client.call(
-    user_query="Question",
-    prompt=Prompt(prompt="Template", output_format=ResponseModel)
-)
-
-# Function call with tools
-response = client.fcall(
-    user_query="Question",
-    system_prompt=Prompt(...),
-    tool_manager=ToolManager(tools=[...]),
-    max_parallel_tools=5
-)
-```
-
-#### LLMClient Methods
-
-- `call(user_query, prompt, prompt_kwargs)`: Direct LLM call
-- `fcall(user_query, system_prompt, tool_manager, prompt_kwargs, max_parallel_tools)`: Function calling with tools
-- `_build_generator(prompt, output_processors, override_json_format)`: Build generator instance
-
-### ConnectionManager
-
-Manages database connections and resource lifecycle.
-
-```python
-from tron_ai.utils.concurrency.connection_manager import get_connection_manager
-
-manager = get_connection_manager()
-
-# Get ChromaDB client
-client = manager.chroma_client
-
-# Get memory collection
-memory = manager.memory_collection
-
-# Context manager usage
-with manager.get_connection("chroma") as conn:
-    # Use connection
-    pass
-
-# Async context manager
-async with manager.get_async_connection("memory") as conn:
-    # Use connection
-    pass
-
-# Manual cleanup
-manager.close_connection("all")
-```
-
-## Models
-
-### ExecutorConfig
-
-```python
-from tron_ai.executors.base import ExecutorConfig
-
-config = ExecutorConfig(
-    client=llm_client,      # Required: LLMClient instance
-    prompt=prompt,          # Optional: Default prompt
-    logging=True           # Optional: Enable logging
-)
-```
-
-### Prompt
-
-```python
-from tron_ai.prompts.models import Prompt
-
-prompt = Prompt(
-    prompt="Template with {variable}",
-    output_format=ResponseModel  # Pydantic model
-)
-
-# Build prompt with variables
-rendered = prompt.build(variable="value")
-```
-
-### Task
-
-```python
-from tron_ai.modules.tasks import Task
-
-task = Task(
-    identifier="task-001",
-    description="Task description",
-    priority=1,
-    dependencies=["task-000"],
-    operations=["operation1", "operation2"],
-    assigned_agent=None,
-    result=None
-)
+config = DatabaseConfig()
+manager = DatabaseManager(config)
+await manager.initialize()
+conv = await manager.create_conversation(session_id="id", agent_name="agent")
 ```
 
 ## Exceptions
 
-Custom exception hierarchy for better error handling.
+Custom exceptions for error handling in Tron AI.
+
+- **Purpose**: Provide meaningful error handling with context-specific messages.
+- **Why They Matter**: Improve debugging and robustness.
 
 ```python
-from tron_ai.exceptions import (
-    TronAIError,      # Base exception
-    ExecutionError,   # Task execution errors
-    AgentError,       # Agent-related errors
-    TaskError,        # Task-related errors
-    ConfigError       # Configuration errors
-)
-
-try:
-    # Execute task
-    pass
-except ExecutionError as e:
-    # Handle execution error
-    pass
-except TronAIError as e:
-    # Handle any Tron AI error
-    pass
+from tron_ai.exceptions import TronAIError, ExecutionError, AgentError
 ```
 
 ## Constants
 
-Centralized configuration constants.
+Global configuration constants like timeouts and limits used across the app for consistency.
+
+- **Purpose**: Define limits, timeouts, and defaults to prevent magic numbers.
+- **Why They Matter**: Make configuration easy to tweak and maintain.
 
 ```python
-from tron_ai.constants import (
-    # LLM Settings
-    LLM_MAX_RETRIES,
-    LLM_DEFAULT_TEMPERATURE,
-    LLM_MAX_PARALLEL_TOOLS,
-    
-    # Timeouts
-    TIMEOUT_MCP_AGENT,
-    TIMEOUT_COMPLETION,
-    TIMEOUT_DEFAULT,
-    
-    # Memory Settings
-    CLI_MEMORY_QUERY_LIMIT,
-    MEMORY_TIME_TODAY,
-    MEMORY_TIME_WEEK,
-    MEMORY_TIME_MONTH,
-    MEMORY_TIME_ALL,
-    
-    # Connection Settings
-    CONNECTION_POOL_SIZE,
-    CONNECTION_POOL_TIMEOUT
-)
+from tron_ai.constants import LLM_MAX_RETRIES, TIMEOUT_TASK_EXECUTION
 ```
-
-## Usage Examples
-
-### Basic Completion
-
-```python
-from tron_ai.utils.llm.LLMClient import LLMClient, LLMClientConfig
-from tron_ai.executors.completion import CompletionExecutor
-from tron_ai.executors.base import ExecutorConfig
-from tron_ai.prompts.models import Prompt
-
-# Setup
-client = LLMClient(
-    client=OpenAIClient(),
-    config=LLMClientConfig(model_name="gpt-4o")
-)
-executor = CompletionExecutor(
-    config=ExecutorConfig(client=client)
-)
-
-# Execute
-response = executor.execute(
-    user_query="Explain Python decorators",
-    system_prompt=Prompt(prompt="You are a Python expert")
-)
-```
-
-### Agent-Based Task
-
-```python
-from tron_ai.executors.agents import AgentExecutor
-from tron_ai.executors.agents.builtin import CodeAgent, FileAgent
-
-async def analyze_project():
-    agents = [CodeAgent(), FileAgent()]
-    executor = AgentExecutor(
-        config=ExecutorConfig(client=client),
-        agents=agents
-    )
-    
-    result = await executor.execute(
-        user_query="Analyze the Python files in this project",
-        parallel=True
-    )
-    
-    print(result.report)
-```
-
-### Memory-Enabled Assistant
-
-```python
-from tron_ai.cli import generate_memory_tool
-
-# Create memory tool
-memory_tool = generate_memory_tool()
-
-# Use in executor
-response = executor.execute(
-    user_query="Remember that my favorite color is blue",
-    tool_manager=memory_tool
-)
-
-# Query memories
-response = executor.execute(
-    user_query="What is my favorite color?",
-    tool_manager=memory_tool
-)
-``` 

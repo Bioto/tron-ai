@@ -3,340 +3,126 @@
 ## Table of Contents
 
 1. [Agent System Overview](#agent-system-overview)
-2. [Built-in Agents](#built-in-agents)
-3. [Agent Architecture](#agent-architecture)
-4. [Tool Integration](#tool-integration)
-5. [Agent Orchestration](#agent-orchestration)
-6. [Creating Custom Agents](#creating-custom-agents)
-7. [Best Practices](#best-practices)
+2. [Agent Categories](#agent-categories)
+3. [Core Agents](#core-agents)
+4. [Agent Architecture](#agent-architecture)
+5. [Tool Integration](#tool-integration)
+6. [Agent Orchestration](#agent-orchestration)
+7. [Creating Custom Agents](#creating-custom-agents)
+8. [Best Practices](#best-practices)
 
 ## Agent System Overview
 
-The agent system in Tron AI provides specialized workers that handle specific types of tasks. Each agent has its own set of tools and expertise, allowing for efficient task decomposition and parallel execution.
+Tron AI's agent system is organized into categories for different domains: business, devops, productivity, and the core tron agent. Each agent is specialized for specific tasks and integrates with various tools and services.
 
 ### Agent Ecosystem
 
 ```mermaid
 graph TB
-    subgraph "Agent Types"
-        CA[Code Agent]
-        DA[Docker Agent]
-        FA[File Agent]
-        MA[MCP Agent]
-        SA[Search Agent]
+    subgraph "Agent Categories"
+        BUS[Business]
+        DEV[DevOps]
+        PROD[Productivity]
+        TRON[Tron]
     end
     
-    subgraph "Core Capabilities"
-        CA --> CC[Code Analysis]
-        CA --> CG[Code Generation]
-        CA --> CT[Testing]
-        
-        DA --> DC[Container Mgmt]
-        DA --> DI[Image Handling]
-        DA --> DL[Log Analysis]
-        
-        FA --> FC[File CRUD]
-        FA --> FD[Directory Ops]
-        FA --> FS[Search]
-        
-        MA --> MC[MCP Servers]
-        MA --> MT[Tool Discovery]
-        MA --> ME[Dynamic Execution]
-        
-        SA --> SI[Internet Search]
-        SA --> SR[Result Processing]
-        SA --> SC[Content Extraction]
+    subgraph "Business Agents"
+        BUS --> MS[Marketing Strategy]
+        BUS --> SA[Sales]
+        BUS --> CS[Customer Success]
+        BUS --> PM[Product Management]
+        BUS --> FP[Financial Planning]
+        BUS --> AE[AI Ethics]
+        BUS --> CC[Content Creation]
+        BUS --> CR[Community Relations]
+    end
+    
+    subgraph "DevOps Agents"
+        DEV --> CSA[Code Scanner]
+        DEV --> CEA[Code Editor]
+        DEV --> RSA[Repo Scanner]
+        DEV --> SSHA[SSH]
+    end
+    
+    subgraph "Productivity Agents"
+        PROD --> GA[Google]
+        PROD --> NA[Notion]
+        PROD --> TA[Todoist]
+    end
+    
+    subgraph "Core"
+        TRON --> TA[Tron Agent]
     end
 ```
 
-## Built-in Agents
+## Agent Categories
 
-### 1. Code Agent
+### Business Agents
 
-The Code Agent specializes in code analysis, generation, and manipulation.
+Specialized for business operations and strategy:
 
-#### Capabilities
+- **Marketing Strategy Agent**: Develops marketing plans and content.
+- **Sales Agent**: Handles sales processes and customer interactions.
+- **Customer Success Agent**: Manages customer relationships and support.
+- **Product Management Agent**: Oversees product development and roadmaps.
+- **Financial Planning Agent**: Assists with budgeting and financial analysis.
+- **AI Ethics Agent**: Ensures ethical AI practices.
+- **Content Creation Agent**: Generates marketing and educational content.
+- **Community Relations Agent**: Manages community engagement.
 
-```mermaid
-mindmap
-  root((Code Agent))
-    Analysis
-      Structure Analysis
-      Dependency Mapping
-      Complexity Metrics
-      Security Scanning
-    Generation
-      Code Templates
-      Test Generation
-      Documentation
-      Refactoring
-    Quality
-      Formatting
-      Linting
-      Best Practices
-      Performance Tips
-```
+### DevOps Agents
+
+Focused on development and operations:
+
+- **Code Scanner Agent**: Analyzes code repositories.
+- **Code Editor Agent**: Edits and modifies code.
+- **Repo Scanner Agent**: Scans and maps repositories.
+- **SSH Agent**: Manages remote server access.
+
+### Productivity Agents
+
+For personal and team productivity:
+
+- **Google Agent**: Manages email and calendar.
+- **Notion Agent**: Handles Notion workspace operations.
+- **Todoist Agent**: Manages tasks and projects in Todoist.
+
+### Tron Agent
+
+The core orchestrator that can delegate to other agents via swarm execution.
+
+## Core Agents
+
+### Tron Agent
+
+Main orchestrator using swarm for task delegation.
 
 #### Tools
+- execute_on_swarm
+- query_memory
 
-The Code Agent currently has an empty tool manager but provides comprehensive code analysis, generation, and optimization capabilities through its LLM prompt. It handles:
-- Code structure analysis and organization
-- Code quality assessment and complexity analysis
-- Dependency mapping and import analysis
-- Code formatting according to standards
-- Test case generation and validation
-- Performance optimization suggestions
+### Google Agent
 
-#### Example Usage
-
-```python
-# Via CLI
-tron-ai agent "Analyze this Python module for security issues"
-
-# Direct usage
-from tron_ai.executors.agents.builtin import CodeAgent
-
-agent = CodeAgent()
-# Note: CodeAgent works through LLM interactions, not direct method calls
-```
-
-### 2. Docker Agent
-
-Manages Docker containers and images with comprehensive container lifecycle management.
-
-#### Architecture
-
-```mermaid
-stateDiagram-v2
-    [*] --> Created: create_container
-    Created --> Running: start_container
-    Running --> Stopped: stop_container
-    Stopped --> Running: start_container
-    Stopped --> Removed: remove_container
-    Running --> Removed: remove_container
-    Removed --> [*]
-    
-    Running --> Inspecting: inspect_container
-    Running --> Logs: get_logs
-    Inspecting --> Running
-    Logs --> Running
-```
+Manages email and calendar.
 
 #### Tools
+- Various Google API tools (search_messages, get_message, etc.)
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `list_containers` | Lists all containers | `all: bool = True` |
-| `create_container` | Creates new container | `image: str, name: str, ports: list, env: list, volumes: list` |
-| `start_container` | Starts container | `container: str` |
-| `stop_container` | Stops container | `container: str` |
-| `remove_container` | Removes container | `container: str, force: bool = False` |
-| `get_container_logs` | Gets container logs | `container: str, tail: int = None` |
-| `inspect_container` | Gets container details | `container: str` |
-| `run_docker_command` | Execute arbitrary docker command | `command: str` |
+### Todoist Agent
 
-#### Container Management Flow
-
-```mermaid
-sequenceDiagram
-    participant User
-    participant DockerAgent
-    participant DockerAPI
-    participant Container
-    
-    User->>DockerAgent: Create web server
-    DockerAgent->>DockerAPI: create_container(nginx)
-    DockerAPI-->>DockerAgent: container_id
-    
-    DockerAgent->>DockerAPI: start_container(id)
-    DockerAPI->>Container: Start
-    Container-->>DockerAPI: Running
-    
-    DockerAgent->>DockerAPI: get_logs(id)
-    DockerAPI-->>DockerAgent: Log output
-    
-    DockerAgent-->>User: Container running
-```
-
-### 3. File Agent
-
-Handles all file system operations with safety checks and validation.
-
-#### File Operations
-
-```mermaid
-graph LR
-    subgraph "File Operations"
-        CREATE[Create File]
-        READ[Read File]
-        UPDATE[Update File]
-        DELETE[Delete File]
-        LIST[List Directory]
-    end
-    
-    subgraph "Safety Features"
-        VALIDATE[Path Validation]
-        BACKUP[Auto Backup]
-        ROLLBACK[Rollback Support]
-        PERMISSIONS[Permission Check]
-    end
-    
-    CREATE --> VALIDATE
-    UPDATE --> BACKUP
-    DELETE --> BACKUP
-    ALL[All Operations] --> PERMISSIONS
-```
+Task management.
 
 #### Tools
+- Todoist API tools (get_tasks, create_task, etc.)
 
-All file operations are async and include comprehensive error handling:
+### Notion Agent
 
-| Tool | Description | Parameters |
-|------|-------------|------------|
-| `create_file` | Creates new file | `file_path: str, content: str = "", overwrite: bool = False` |
-| `read_file` | Reads file content | `file_path: str` |
-| `update_file` | Updates file content | `file_path: str, content: str, backup: bool = True` |
-| `delete_file` | Deletes file | `file_path: str, backup: bool = True` |
-| `list_directory` | Lists directory contents | `directory_path: str, recursive: bool = False, show_hidden: bool = False` |
+Knowledge management.
 
-### 4. MCP Agent
+#### Tools
+- Notion API tools (create_page, update_page, etc.)
 
-Integrates with Model Context Protocol servers for dynamic tool loading. For multi-server management, use the MCP Agent Manager (see below).
-
-#### MCP Integration Flow
-
-```mermaid
-sequenceDiagram
-    participant MCPAgent
-    participant MCPClient
-    participant MCPServer
-    participant Tools
-    
-    MCPAgent->>MCPClient: Initialize
-    MCPClient->>MCPServer: Connect
-    MCPServer-->>MCPClient: Server Info
-    
-    MCPClient->>MCPServer: List Tools
-    MCPServer-->>MCPClient: Available Tools
-    
-    MCPClient->>Tools: Register Tools
-    Tools-->>MCPAgent: Tools Ready
-    
-    Note over MCPAgent: Dynamic tool execution
-    
-    MCPAgent->>Tools: Execute Tool
-    Tools->>MCPServer: Tool Request
-    MCPServer-->>Tools: Tool Result
-    Tools-->>MCPAgent: Formatted Result
-```
-
-#### Dynamic Tool Discovery
-
-```mermaid
-graph TD
-    subgraph "MCP Tool Discovery"
-        INIT[Initialize MCP Agent]
-        SCAN[Scan MCP Servers]
-        DISC[Discover Tools]
-        REG[Register Tools]
-        EXEC[Execute Tools]
-    end
-    
-    INIT --> SCAN
-    SCAN --> DISC
-    DISC --> REG
-    REG --> EXEC
-    
-    subgraph "Tool Types"
-        FS[Filesystem Tools]
-        DB[Database Tools]
-        API[API Tools]
-        CUSTOM[Custom Tools]
-    end
-    
-    DISC --> FS
-    DISC --> DB
-    DISC --> API
-    DISC --> CUSTOM
-```
-
----
-
-### 4a. MCP Agent Manager
-
-The MCP Agent Manager (`MCPAgentManager`) is a singleton responsible for managing multiple MCP agents, each connected to a different MCP server. It provides a unified interface for initializing, adding, removing, and reloading MCP agents at runtime.
-
-#### Key Features
-- Singleton pattern for global access
-- Manages a pool of named MCP agents
-- Supports dynamic (re)loading from config files
-- Async initialization and cleanup
-- Default agent selection
-
-#### Example Usage
-
-```python
-from tron_ai.modules.mcp.manager import MCPAgentManager
-
-manager = MCPAgentManager()
-await manager.initialize("mcp_servers.json")  # Load all agents from config
-
-# Get default agent
-agent = manager.get_default_agent()
-
-# Get agent by name
-agent = manager.get_agent("my-mcp-server")
-
-# Add a new agent at runtime
-await manager.add_agent("new-server", server_config)
-
-# Remove an agent
-await manager.remove_agent("old-server")
-
-# Reload all agents from config
-await manager.reload_agents("mcp_servers.json")
-
-# Cleanup all agents
-await manager.cleanup()
-```
-
-#### When to Use
-- When you need to orchestrate multiple MCP servers
-- For dynamic agent pool management in production
-- To support hot-reloading of agent configs
-
----
-
-### 5. Search Agent
-
-Provides web search capabilities using the Perplexity API for real-time information retrieval.
-
-#### Search Flow
-
-```mermaid
-flowchart LR
-    subgraph "Search Pipeline"
-        QUERY[Search Query]
-        ENGINE[Search Engine]
-        RESULTS[Raw Results]
-        FILTER[Filter & Rank]
-        EXTRACT[Extract Content]
-        FORMAT[Format Output]
-    end
-    
-    QUERY --> ENGINE
-    ENGINE --> RESULTS
-    RESULTS --> FILTER
-    FILTER --> EXTRACT
-    EXTRACT --> FORMAT
-    
-    subgraph "Processing"
-        FILTER --> RELEVANCE[Relevance Check]
-        FILTER --> QUALITY[Quality Score]
-        EXTRACT --> SUMMARY[Summarize]
-        EXTRACT --> FACTS[Extract Facts]
-    end
-```
+<!-- Add similar sections for other agents with their tools from search results -->
 
 ## Agent Architecture
 
@@ -452,6 +238,8 @@ graph LR
 ```
 
 ## Agent Orchestration
+
+Tron Agent uses swarm executor for orchestration.
 
 ### Parallel Execution Strategy
 
@@ -609,48 +397,3 @@ flowchart TD
     MULTI --> ORCHESTRATE[Orchestrate Agents]
     ORCHESTRATE --> EXEC
 ```
-
-### 2. Error Handling
-
-```python
-# Agent error handling pattern
-try:
-    result = agent.execute(task)
-except AgentError as e:
-    # Handle agent-specific errors
-    logger.error(f"Agent {e.agent_name} failed: {e.message}")
-    # Fallback strategy
-    result = fallback_agent.execute(task)
-except Exception as e:
-    # Handle unexpected errors
-    logger.error(f"Unexpected error: {e}")
-    raise
-```
-
-### 3. Performance Optimization
-
-- **Use appropriate agents**: Don't use complex agents for simple tasks
-- **Leverage parallelization**: Execute independent agents concurrently
-- **Cache results**: Store and reuse results for similar queries
-- **Limit scope**: Provide specific instructions to agents
-
-### 4. Testing Agents
-
-```mermaid
-graph LR
-    subgraph "Testing Strategy"
-        UNIT[Unit Tests]
-        INTEGRATION[Integration Tests]
-        E2E[End-to-End Tests]
-        PERF[Performance Tests]
-    end
-    
-    UNIT --> |Test Tools| TOOLS[Tool Tests]
-    UNIT --> |Test Logic| LOGIC[Logic Tests]
-    INTEGRATION --> |Test with LLM| LLM[LLM Integration]
-    E2E --> |Test Workflows| WORKFLOW[Workflow Tests]
-    PERF --> |Test Speed| SPEED[Speed Tests]
-    PERF --> |Test Scale| SCALE[Scale Tests]
-```
-
-This documentation provides a comprehensive overview of the Tron AI agent system, including detailed information about each built-in agent, architecture patterns, and best practices for development and usage. 
