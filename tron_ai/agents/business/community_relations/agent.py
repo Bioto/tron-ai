@@ -34,7 +34,7 @@ When engaging with communities:
 Always maintain authenticity and focus on community value over direct business outcomes.
 """
 
-class Agent(Agent):
+class CommunityRelationsAgent(Agent):
     def __init__(self):
         super().__init__(
             name="CommunityRelations",

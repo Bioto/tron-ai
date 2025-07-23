@@ -67,7 +67,11 @@ class ExecutionResult:
             markdown += "\n"
             if task.result:
                 markdown += "## Results\n\n"
-                markdown += task.result.response + "\n"
+                # Show the full response including generated_output if available
+                if hasattr(task.result, 'generated_output') and task.result.generated_output:
+                    markdown += task.result.generated_output + "\n"
+                else:
+                    markdown += task.result.response + "\n"
         return markdown
 
 class SwarmTools:
@@ -146,6 +150,10 @@ class SwarmTools:
                 state.tasks = response.tasks
             else:
                 self.logger.debug("LLM did not generate any tasks.")
+                # Store the direct response if provided
+                if response.response:
+                    state.response = response.response
+                    self.logger.debug(f"Stored direct response: {response.response}")
 
             self.logger.debug("Exiting generate_tasks.")
             return state
@@ -192,7 +200,6 @@ class SwarmTools:
         Raises:
             ExecutionError: If any tasks cannot be assigned to an agent.
         """
-        print(state.agents)
         self.logger.debug("Entering assign_agents.")
         self.logger.debug(f"Assigning agents for {len(state.tasks)} tasks.")
         selected_tasks, unassigned_tasks = self.agent_selector.select_agents(

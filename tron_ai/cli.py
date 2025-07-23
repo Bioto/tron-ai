@@ -267,14 +267,7 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
     
-    client = get_llm_client(
-        model_name="meta-llama/llama-4-maverick-17b-128e-instruct",
-        json_output=True,  # Enable JSON output for proper response parsing
-        client=OpenAIClient(
-            base_url="https://api.groq.com/openai/v1",
-            api_key=os.getenv("GROQ_API_KEY"),
-        ),
-    )
+    client = get_llm_client(json_output=True)
     
     # Check if an MCP agent was requested
     if mcp_agent:
@@ -418,7 +411,8 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
         console.print(f"[yellow]⚠[/yellow] Community Relations Agent unavailable: {str(e)}")
         
     # Add the requested agent if it's not already in all_agents
-    if agent_instance not in all_agents:
+    # Don't add TronAgent to the swarm agents list - it's the orchestrator
+    if agent_instance not in all_agents and type(agent_instance).__name__ != "TronAgent":
         all_agents.append(agent_instance)
         console.print(f"[green]✓[/green] Added requested agent: {agent_instance.name}")
 
@@ -502,7 +496,9 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
             
             # Add agent session to database
             agent_name = "swarm" if mode == "swarm" else agent_instance.name
-            if hasattr(response, "response") and response.response is not None:
+            if hasattr(response, "task_report") and callable(response.task_report):
+                agent_response_val = response.task_report()
+            elif hasattr(response, "response") and response.response is not None:
                 agent_response_val = response.response
             elif hasattr(response, "generated_output"):
                 agent_response_val = response.generated_output
@@ -520,11 +516,19 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
                 meta=None
             )
             # Add assistant message to database
-            md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
-            if not md_content:
-                md_content = getattr(response, 'generated_output', "") if response is not None else ""
+            if hasattr(response, "task_report") and callable(response.task_report):
+                md_content = response.task_report()
+            elif hasattr(response, "response") and response.response:
+                md_content = response.response
+            elif hasattr(response, "generated_output") and response.generated_output:
+                md_content = response.generated_output
             else:
-                md_content = json.dumps(md_content) if isinstance(md_content, dict) else str(md_content)
+                md_content = ""
+            
+            if isinstance(md_content, dict):
+                md_content = json.dumps(md_content)
+            else:
+                md_content = str(md_content)
             await db_manager.add_message(
                 session_id=session_id,
                 role="assistant",
@@ -537,7 +541,15 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
             if mode == "regular":
                 md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
             else:
-                md_content = response.task_report()
+                # For swarm mode, check if tasks were actually generated
+                if hasattr(response, 'response') and response.response:
+                    md_content = response.response
+                elif hasattr(response, 'tasks') and response.tasks:
+                    md_content = response.task_report()
+                elif hasattr(response, 'report') and response.report:
+                    md_content = response.report
+                else:
+                    md_content = getattr(response, "generated_output", "No response generated")
 
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 md_content += "\n\n### Diagnostic Message: Tools Used\n"

@@ -33,6 +33,7 @@ class SwarmState(BaseModel):
     agents: List[Agent] = Field(default_factory=list, description="Available agents for task execution")
     results: List[Task] = Field(default_factory=list, description="Completed tasks with their execution results")
     report: str = Field(default="", description="The final compiled report of the delegation workflow")
+    response: Optional[str] = Field(default=None, description="Direct response when no tasks are generated")
     
     def task_report(self) -> str:
         logger.info(f"Generating task report for {len(self.tasks)} tasks")
@@ -56,7 +57,13 @@ class SwarmState(BaseModel):
             markdown += "\n"
             if task.result:
                 markdown += "## Results\n\n"
-                if hasattr(task.result, 'response') and task.result.response:
+                # First try to get generated_output if available (for MarketerResponse and similar)
+                if hasattr(task.result, 'generated_output') and task.result.generated_output:
+                    result_length = len(task.result.generated_output)
+                    logger.info(f"Task {i+1} has generated_output with {result_length} characters")
+                    logger.debug(f"Task {i+1} generated_output preview: {task.result.generated_output[:200]}...")
+                    markdown += task.result.generated_output + "\n"
+                elif hasattr(task.result, 'response') and task.result.response:
                     result_length = len(task.result.response)
                     logger.info(f"Task {i+1} has result with {result_length} characters")
                     logger.debug(f"Task {i+1} result preview: {task.result.response[:200]}...")

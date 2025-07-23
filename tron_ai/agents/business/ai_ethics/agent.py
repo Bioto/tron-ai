@@ -34,7 +34,7 @@ When evaluating AI implementations:
 Always prioritize responsible AI deployment that builds trust with customers and stakeholders.
 """
 
-class Agent(Agent):
+class AIEthicsAgent(Agent):
     def __init__(self):
         super().__init__(
             name="AIEthics",

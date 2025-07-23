@@ -34,7 +34,7 @@ When providing financial analysis:
 Always maintain accuracy in calculations and provide clear explanations of financial concepts for technical founders.
 """
 
-class Agent(Agent):
+class FinancialPlanningAgent(Agent):
     def __init__(self):
         super().__init__(
             name="FinancialPlanning",

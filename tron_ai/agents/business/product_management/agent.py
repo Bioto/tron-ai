@@ -34,7 +34,7 @@ When evaluating product decisions:
 Always ground product decisions in both technical reality and customer value.
 """
 
-class Agent(Agent):
+class ProductManagementAgent(Agent):
     def __init__(self):
         super().__init__(
             name="ProductManagement",

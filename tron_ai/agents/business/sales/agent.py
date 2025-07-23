@@ -28,7 +28,7 @@ For each sales interaction:
 Always prioritize long-term customer success over short-term sales wins.
 """
 
-class Agent(Agent):
+class SalesAgent(Agent):
     def __init__(self):
         super().__init__(
             name="Sales",

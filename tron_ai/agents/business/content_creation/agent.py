@@ -34,7 +34,7 @@ When creating content:
 Always focus on building trust through technical expertise and practical value delivery.
 """
 
-class Agent(Agent):
+class ContentCreationAgent(Agent):
     def __init__(self):
         super().__init__(
             name="ContentCreation",

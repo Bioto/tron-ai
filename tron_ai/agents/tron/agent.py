@@ -296,6 +296,9 @@ class TronAgent(Agent):
         
         agent_descriptions = ""
         if mode == "swarm":
+            # Build the agent list for swarm mode
+            self.build_agent_list()
+            
             agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
             
             for agent in TronTools._agents:

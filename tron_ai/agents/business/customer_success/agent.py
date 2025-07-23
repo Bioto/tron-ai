@@ -34,7 +34,7 @@ When responding to customer issues:
 Always maintain a balance between technical accuracy and customer empathy.
 """
 
-class Agent(Agent):
+class CustomerSuccessAgent(Agent):
     def __init__(self):
         super().__init__(
             name="CustomerSuccess",
