@@ -12,6 +12,7 @@ import uuid
 import inspect
 from tron_ai.agents.devops.code_scanner.agent import CodeScannerAgent
 from tron_ai.agents.devops.editor.agent import CodeEditorAgent
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -53,7 +54,12 @@ class TronTools:
         and contextually aware responses.
         """
         from .utils import memory
-        return memory.search(query=query, user_id="tron", limit=5, threshold=0.5)
+        try:
+            memories = memory.search(query=query, user_id="tron", limit=5, threshold=0.5)
+            return json.dumps(memories)
+        except Exception as e:
+            logger.error(f"Error in query_memory: {str(e)}")
+            return json.dumps({"error": str(e)})
     
     @staticmethod
     async def execute_on_swarm(query: str, session_id: str = None, context: dict = None) -> dict:

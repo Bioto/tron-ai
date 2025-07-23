@@ -16,6 +16,8 @@ from rich.table import Table
 
 from tron_ai.config import setup_logging
 
+os.environ["ANONYMIZED_TELEMETRY"] = "False"
+os.environ["MEM0_TELEMETRY"] = "False"
 
 # Suppress Pydantic deprecation warnings from ChromaDB
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
@@ -179,7 +181,7 @@ async def cli():
 
 
 @cli.command()
-@click.argument("user_query")
+@click.argument("user_query", required=False)
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google"]))
 async def ask(user_query: str, agent: str) -> str:
     """Ask Tron AI a question"""
@@ -238,10 +240,11 @@ async def ask(user_query: str, agent: str) -> str:
 
 
 @cli.command()
-@click.argument("user_query")
+@click.argument("user_query", required=False)
 @click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
 @click.option("--mcp-agent", default=None, help="Use a specific MCP agent by server name (e.g., 'mcp-server-docker')")
-async def chat(user_query: str, agent: str, mcp_agent: str):
+@click.option("--mode", default="regular", type=click.Choice(["regular", "swarm"]), help="Execution mode")
+async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: str = "regular"):
     """Start an interactive chat session with the Tron agent."""
     import uuid
     import time
@@ -254,6 +257,8 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
     from tron_ai.models.executors import ExecutorConfig
     from tron_ai.utils.llm.LLMClient import get_llm_client
     from tron_ai.executors.agent import AgentExecutor
+    from tron_ai.executors.swarm.executor import SwarmExecutor
+    from tron_ai.executors.swarm.models import SwarmState
     from adalflow.components.model_client import OpenAIClient
     
     console = Console()
@@ -325,15 +330,107 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
         agent_instance = CommunityRelationsAgent()
     else:
         from tron_ai.agents.tron.agent import TronAgent
-        agent_instance = TronAgent()
+        agent_instance = TronAgent(mode=mode)
         
-    executor = AgentExecutor(
-        config=ExecutorConfig(
-            client=client,
-            logging=True,
-        ),
-    )
-    
+    all_agents = []
+    try:
+        from tron_ai.agents.productivity.google.agent import GoogleAgent
+        all_agents.append(GoogleAgent())
+        console.print("[green]✓[/green] Added Google Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Google Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.productivity.todoist.agent import TodoistAgent
+        all_agents.append(TodoistAgent())
+        console.print("[green]✓[/green] Added Todoist Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Todoist Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.productivity.notion.agent import NotionAgent
+        all_agents.append(NotionAgent())
+        console.print("[green]✓[/green] Added Notion Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Notion Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.devops.ssh.agent import SSHAgent
+        all_agents.append(SSHAgent())
+        console.print("[green]✓[/green] Added SSH Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] SSH Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.marketing_strategy.agent import MarketingStrategyAgent
+        all_agents.append(MarketingStrategyAgent())
+        console.print("[green]✓[/green] Added Marketing Strategy Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Marketing Strategy Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.sales.agent import SalesAgent
+        all_agents.append(SalesAgent())
+        console.print("[green]✓[/green] Added Sales Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Sales Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.customer_success.agent import CustomerSuccessAgent
+        all_agents.append(CustomerSuccessAgent())
+        console.print("[green]✓[/green] Added Customer Success Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Customer Success Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.product_management.agent import ProductManagementAgent
+        all_agents.append(ProductManagementAgent())
+        console.print("[green]✓[/green] Added Product Management Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Product Management Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.financial_planning.agent import FinancialPlanningAgent
+        all_agents.append(FinancialPlanningAgent())
+        console.print("[green]✓[/green] Added Financial Planning Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Financial Planning Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.ai_ethics.agent import AIEthicsAgent
+        all_agents.append(AIEthicsAgent())
+        console.print("[green]✓[/green] Added AI Ethics Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] AI Ethics Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.content_creation.agent import ContentCreationAgent
+        all_agents.append(ContentCreationAgent())
+        console.print("[green]✓[/green] Added Content Creation Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Content Creation Agent unavailable: {str(e)}")
+        
+    try:
+        from tron_ai.agents.business.community_relations.agent import CommunityRelationsAgent
+        all_agents.append(CommunityRelationsAgent())
+        console.print("[green]✓[/green] Added Community Relations Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Community Relations Agent unavailable: {str(e)}")
+        
+    # Add the requested agent if it's not already in all_agents
+    if agent_instance not in all_agents:
+        all_agents.append(agent_instance)
+        console.print(f"[green]✓[/green] Added requested agent: {agent_instance.name}")
+
+    # Create executor based on mode
+    if mode == "regular":
+        executor = AgentExecutor(
+            config=ExecutorConfig(
+                client=client,
+                logging=True,
+            ),
+        )
+
     # Create or get conversation
     conversation = await db_manager.get_conversation(session_id)
     if not conversation:
@@ -347,12 +444,12 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
 
     # Conversation header
     header = Panel(
-        f"[bold cyan]Tron AI Chat Session[/bold cyan]\n[green]Agent:[/green] {agent_instance.name}\n[dim]Type 'exit', 'quit', or 'bye' to leave.[/dim]",
+        f"[bold cyan]Tron AI Chat Session[/bold cyan]\n[green]Agent:[/green] {agent_instance.name if mode=='regular' else 'Swarm'}\n[green]Mode:[/green] {mode}\n[dim]Type 'exit', 'quit', or 'bye' to leave.[/dim]",
         style="bold magenta",
         expand=False
     )
     console.print(header)
-    triggered = False
+    triggered = user_query is None
     while True:
         try:
             if triggered:
@@ -389,10 +486,22 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
             # Execute agent with timing and spinner
             start_time = time.time()
             with console.status("[bold blue]Assistant is thinking...[/bold blue]", spinner="dots"):
-                response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
+                if mode == "regular":
+                    response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
+                else:
+                    swarm_state = SwarmState(agents=all_agents)
+                    swarm_executor = SwarmExecutor(
+                        state=swarm_state,
+                        config=ExecutorConfig(
+                            client=client,
+                            logging=True,
+                        ),
+                    )
+                    response = await swarm_executor.execute(user_query=full_query.rstrip())
             execution_time_ms = int((time.time() - start_time) * 1000)
             
             # Add agent session to database
+            agent_name = "swarm" if mode == "swarm" else agent_instance.name
             if hasattr(response, "response") and response.response is not None:
                 agent_response_val = response.response
             elif hasattr(response, "generated_output"):
@@ -402,7 +511,7 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
             agent_response_str = json.dumps(agent_response_val) if isinstance(agent_response_val, dict) else str(agent_response_val)
             await db_manager.add_agent_session(
                 session_id=session_id,
-                agent_name=agent_instance.name,
+                agent_name=agent_name,
                 user_query=user_input,
                 agent_response=agent_response_str,
                 tool_calls=getattr(response, 'tool_calls', None),
@@ -411,21 +520,24 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
                 meta=None
             )
             # Add assistant message to database
-            content = getattr(response, 'response', None)
-            if not content:
-                content = getattr(response, 'generated_output', "") if response is not None else ""
+            md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+            if not md_content:
+                md_content = getattr(response, 'generated_output', "") if response is not None else ""
             else:
-                content = json.dumps(content) if isinstance(content, dict) else str(content)
+                md_content = json.dumps(md_content) if isinstance(md_content, dict) else str(md_content)
             await db_manager.add_message(
                 session_id=session_id,
                 role="assistant",
-                content=content,
-                agent_name=agent_instance.name,
+                content=md_content,
+                agent_name=agent_name,
                 tool_calls=getattr(response, 'tool_calls', None),
                 meta=None
             )
             
-            md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+            if mode == "regular":
+                md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+            else:
+                md_content = response.task_report()
 
             if hasattr(response, 'tool_calls') and response.tool_calls:
                 md_content += "\n\n### Diagnostic Message: Tools Used\n"
@@ -486,7 +598,7 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
             assistant_panel = Panel(
                 Markdown(md_content),
                 style="blue",
-                title=f"{agent_instance.name} [{datetime.now():%H:%M:%S}]",
+                title=f"{agent_name} [{datetime.now():%H:%M:%S}]",
                 border_style="blue"
             )
             console.print(assistant_panel)
@@ -496,9 +608,10 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
         except Exception as e:
             console.print(Panel(f"[bold red]Error:[/bold red] {str(e)}", style="red"))
             # Log error to database
+            agent_name = "swarm" if mode == "swarm" else agent_instance.name
             await db_manager.add_agent_session(
                 session_id=session_id,
-                agent_name=agent_instance.name,
+                agent_name=agent_name,
                 user_query=user_input if 'user_input' in locals() else "Unknown",
                 success=False,
                 error_message=str(e),

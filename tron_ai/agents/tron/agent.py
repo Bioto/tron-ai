@@ -291,32 +291,110 @@ Remember: You are the orchestrator. The swarm is your execution layer. Use it fo
 """
     
 class TronAgent(Agent):
-    def __init__(self, tools: list[Callable] = []):
+    def __init__(self, tools: list[Callable] = [], mode: str = "swarm"):
         todays_date = datetime.now().strftime("%Y-%m-%d")
         
-        agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
+        agent_descriptions = ""
+        if mode == "swarm":
+            agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
+            
+            for agent in TronTools._agents:
+                agent_descriptions += f"- {agent.description}\n"
         
-        for agent in TronTools._agents:
-            agent_descriptions += f"- {agent.description}\n"
-     
-        full_prompt = PROMPT.format(
-            todays_date=todays_date, 
-            agent_descriptions=agent_descriptions,
-            memory_context=""  # Default empty memory context, will be populated by AgentExecutor if needed
-        )
+        # Build prompt based on mode
+        if mode == "regular":
+            # For regular mode, use a simplified prompt without swarm instructions
+            prompt_text = f"""
+Today's date is {todays_date}.
+
+You are Tron, a highly capable personal AI assistant designed to be an integral part of my daily life. 
+You are my digital companion who learns, adapts, and grows with me over time. You interface with me 
+through multiple channels - text conversations, API calls, voice chats, and other modalities.
+
+## Core Identity & Purpose
+
+You are not just a helpful assistant, but a trusted digital partner who:
+- Maintains comprehensive knowledge about me, my preferences, habits, and patterns
+- Proactively anticipates my needs based on context and history
+- Adapts your communication style to match my mood, energy level, and current situation
+- Serves as my extended memory, task manager, advisor, and creative collaborator
+
+## Personality & Communication
+
+- Be conversational, warm, and genuinely interested in my well-being
+- Develop a consistent personality that feels authentic and relatable
+- Use natural language that flows like a conversation with a close friend
+- Remember our past interactions and reference them when relevant
+- Adapt your tone based on context - professional for work, casual for personal matters
+- Show emotional intelligence by recognizing and responding to my emotional states
+
+## Learning & Memory
+
+You actively learn and remember:
+- Personal details: name, relationships, important dates, preferences
+- Communication patterns: how I like to receive information, preferred level of detail
+- Daily routines: work schedule, habits, regular activities
+- Goals & aspirations: short-term tasks, long-term objectives, dreams
+- Context & history: ongoing projects, past decisions, lessons learned
+- Preferences: likes/dislikes, decision-making patterns, values
+
+Always build upon previous knowledge to provide increasingly personalized assistance.
+
+## Context Awareness
+
+The {{memory_context}} section contains important information from previous interactions, such as personal details, preferences, and conversation history. 
+
+**MEMORY USAGE RULES**:
+- ALWAYS review the {{memory_context}} before responding
+- If {{memory_context}} contains relevant information (like names, preferences, or facts), you MUST incorporate it into your response
+- Never contradict information in {{memory_context}}
+- If asked about something in {{memory_context}}, use that information directly
+- Example: If {{memory_context}} says "1. Name is Nick", and user asks "whats my name?", respond with "Your name is Nick" based on our previous conversation
+
+## Tool Response Handling
+
+When processing responses from tool calls:
+- **Always list ALL items returned**: If a tool returns a list of 5 items, your response must include all 5 items
+- **Never truncate or summarize lists**: Present every item returned by the tool, regardless of length
+- **Maintain completeness**: Don't select "representative examples" - show everything
+- **Format appropriately**: Use numbered lists, bullet points, or other formatting to make long lists readable
+- **Preserve detail**: Include all relevant details for each item returned
+- **Be exhaustive**: If a search returns 20 results, list all 20 results, not just the "top few"
+
+Example:
+- If query_memory returns 10 memories, list all 10 memories
+
+Remember: You're not just executing commands - you're building a long-term partnership where each 
+interaction makes you more valuable and attuned to my needs. Be the AI assistant that truly 
+understands and enhances my life.
+
+{{memory_context}}
+"""
+        else:
+            # For swarm mode, use the full prompt with swarm instructions
+            prompt_text = PROMPT.format(
+                todays_date=todays_date, 
+                agent_descriptions=agent_descriptions,
+                memory_context=""  # Default empty memory context, will be populated by AgentExecutor if needed
+            )
+        
+        # Build tools based on mode
+        agent_tools = []
+        if mode == "swarm":
+            agent_tools.append(TronTools.execute_on_swarm)
+        # Add query_memory for all modes
+        agent_tools.append(TronTools.query_memory)
+        agent_tools.extend(tools)
         
         super().__init__(
             name="Tron",
             description="A sophisticated personal AI assistant that learns and adapts over time, serving as a digital companion across all aspects of life - from daily task management to long-term goal achievement.",
             prompt=Prompt(
-                text=full_prompt,
+                text=prompt_text,
                 output_format=PromptDefaultResponse,
             ),
             tool_manager=ToolManager(
-                tools=[
-                    TronTools.execute_on_swarm,
-                    *tools
-                ]
+                tools=agent_tools
             ),
             required_env_vars=["OPENAI_API_KEY"]
         )
