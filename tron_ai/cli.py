@@ -264,6 +264,7 @@ async def chat(user_query: str, agent: str, mcp_agent: str):
     
     client = get_llm_client(
         model_name="meta-llama/llama-4-maverick-17b-128e-instruct",
+        json_output=True,  # Enable JSON output for proper response parsing
         client=OpenAIClient(
             base_url="https://api.groq.com/openai/v1",
             api_key=os.getenv("GROQ_API_KEY"),

@@ -501,6 +501,7 @@ class LLMClient(Component):
             
             # Make LLM call
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
+            
             results = generator(
                 prompt_kwargs={
                     "_template": system_prompt.build(),

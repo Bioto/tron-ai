@@ -129,12 +129,14 @@ When responding:
 
 ## Context Awareness
 
-You may be provided with context that has been matched to the user query. This context could include:
-- Previous conversations or interactions
-- Relevant information from my knowledge base
-- Related documents or notes
-- Past decisions or preferences
-- Ongoing project details
+The {memory_context} section contains important information from previous interactions, such as personal details, preferences, and conversation history. 
+
+**MEMORY USAGE RULES**:
+- ALWAYS review the {memory_context} before responding
+- If {memory_context} contains relevant information (like names, preferences, or facts), you MUST incorporate it into your response
+- Never contradict information in {memory_context}
+- If asked about something in {memory_context}, use that information directly
+- Example: If {memory_context} says "1. Name is Nick", and user asks "whats my name?", respond with "Your name is Nick" based on our previous conversation
 
 When context is provided:
 - Carefully review all provided context before responding
@@ -281,6 +283,8 @@ Example for email:
 - You: Call execute_on_swarm with query like "Send email to queenmonica1982@yahoo.com with subject 'Just a Little Note' and body 'Hi Monica, I just wanted to take a moment to say how much I love you. You mean the world to me. Love, Nick'"
 - You: Report success/failure to user
 
+{memory_context}
+
 {agent_descriptions}
 
 Remember: You are the orchestrator. The swarm is your execution layer. Use it for ALL actions.
@@ -288,8 +292,6 @@ Remember: You are the orchestrator. The swarm is your execution layer. Use it fo
     
 class TronAgent(Agent):
     def __init__(self, tools: list[Callable] = []):
-
-        
         todays_date = datetime.now().strftime("%Y-%m-%d")
         
         agent_descriptions = "\n## Available Agents in the Swarm\n\nYou have access to the following specialized agents through the execute_on_swarm tool. Use them when a task matches their expertise:\n"
@@ -297,7 +299,11 @@ class TronAgent(Agent):
         for agent in TronTools._agents:
             agent_descriptions += f"- {agent.description}\n"
      
-        full_prompt = PROMPT.format(todays_date=todays_date, agent_descriptions=agent_descriptions)
+        full_prompt = PROMPT.format(
+            todays_date=todays_date, 
+            agent_descriptions=agent_descriptions,
+            memory_context=""  # Default empty memory context, will be populated by AgentExecutor if needed
+        )
         
         super().__init__(
             name="Tron",
