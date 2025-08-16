@@ -241,7 +241,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 @cli.command()
 @click.argument("user_query", required=False)
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "wordpress", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
 @click.option("--mcp-agent", default=None, help="Use a specific MCP agent by server name (e.g., 'mcp-server-docker')")
 @click.option("--mode", default="regular", type=click.Choice(["regular", "swarm"]), help="Execution mode")
 async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: str = "regular"):
@@ -321,6 +321,9 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     elif agent == "community_relations":
         from tron_ai.agents.business.community_relations.agent import CommunityRelationsAgent
         agent_instance = CommunityRelationsAgent()
+    elif agent == "wordpress":
+        from tron_ai.agents.productivity.wordpress.agent import WordPressAgent
+        agent_instance = WordPressAgent()
     else:
         from tron_ai.agents.tron.agent import TronAgent
         agent_instance = TronAgent(mode=mode)

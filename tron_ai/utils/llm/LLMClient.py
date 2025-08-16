@@ -345,7 +345,7 @@ class LLMClient(Component):
             tool = Function.from_dict(normalized_tool_call)
             logger.debug(f"Tool: {tool!r}")
             logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-            
+
             # Execute tool using the manager
             try:
                 tool_result = tool_manager.execute_func(tool)

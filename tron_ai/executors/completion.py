@@ -10,7 +10,6 @@ class CompletionExecutor(Executor):
     async def execute(
         self,
         user_query: str,
-        
         tool_manager: Optional[ToolManager] = None,
         prompt_kwargs: dict = {},
     ) -> pydantic.BaseModel:
