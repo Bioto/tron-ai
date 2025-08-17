@@ -11,6 +11,11 @@ memory: Memory = Memory(config=MemoryConfig(
             
         },
     ),
+    create_memory_prompt="""You are a smart memory manager which controls the memory of a system.
+You can perform four operations: (1) add into the memory, (2) update the memory, (3) delete from the memory, and (4) no change.
+
+Based on the above four operations, the memory will change. Only store information and preferences about the user.
+""",
     update_memory_prompt="""You are a smart memory manager which controls the memory of a system.
 You can perform four operations: (1) add into the memory, (2) update the memory, (3) delete from the memory, and (4) no change.
 

@@ -501,13 +501,22 @@ class LLMClient(Component):
                 all_tool_call_results
             )
             
+            print("All tool call results:")
+            print(all_tool_call_results)
+            
             # Format query with previous results and calls
             formatted_query = self._format_query_with_results(
                 user_query, all_tool_call_results, previous_tool_calls
             )
             
+            print("Formatted query:")
+            print(formatted_query)
+            
             # Make LLM call
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
+            
+            print("System prompt:")
+            print(system_prompt.build())
             
             results = generator(
                 prompt_kwargs={
@@ -516,16 +525,18 @@ class LLMClient(Component):
                 }
                 | tool_prompt_kwargs | prompt_kwargs
             )
-            print("Results:")
-            print(results)
-            print('--------------------------------')
-            print(results.raw_response)
             
-            print(f"Raw response: {repr(results.raw_response)}")
-            print(f"Length: {len(results.raw_response)}")
+            print("Prompt kwargs:")
+            print({
+                    "_template": system_prompt.build(),
+                    "_user_query": formatted_query,
+                }
+                | tool_prompt_kwargs | prompt_kwargs)
+         
+            print("Raw Response:")
+            print(results.raw_response)
+            print('\n\n\n')
             cleaned = results.raw_response.replace('\n', '').replace('\r', '').rstrip().strip()
-            print(f"Cleaned: {repr(cleaned)}")
-            print(f"Character at position 309: {repr(cleaned[308:312]) if len(cleaned) > 308 else 'N/A'}")
             dataset = from_json(cleaned)
             if isinstance(dataset, list):
                 if len(dataset) == 1:
