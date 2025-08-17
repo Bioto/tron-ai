@@ -1,4 +1,5 @@
 from typing import List, Optional, Type, Dict, Any
+from abc import ABC, abstractmethod
 import pydantic
 from pydantic import BaseModel, Field
 
@@ -24,6 +25,17 @@ class PromptDiagnostics(BaseModel):
         ge=0.0,
         le=1.0,
     )
+    
+    @staticmethod
+    def example() -> dict:
+        return {
+            "thoughts": [
+                "Thought 1",
+                "Thought 2",
+                "Thought 3"
+            ],
+            "confidence": 0.8
+        }
 
 
 class PromptMeta(BaseModel):
@@ -36,18 +48,49 @@ class PromptMeta(BaseModel):
     diagnostics: PromptDiagnostics = Field(
         default_factory=PromptDiagnostics, description="Diagnostics for the prompt."
     )
+    
+    @staticmethod
+    def example() -> dict:
+        return {
+            "diagnostics": PromptDiagnostics.example()
+        }
+    
 
 
 class ToolCall(BaseModel):
     name: str = Field(description="The name of the tool called.")
     kwargs: Optional[Dict[str, Any]] = Field(default={}, description="The keyword arguments passed to the tool.")
+    
+    @staticmethod
+    def example() -> dict:
+        return {
+            "name": "tool_name",
+            "kwargs": {
+                "arg1": "value1",
+                "arg2": "value2"
+            }
+        }
+    
 
-class BasePromptResponse(PromptMeta, BaseModel):
+
+class BasePromptResponse(PromptMeta, BaseModel, ABC):
     tool_calls: Optional[List[ToolCall]] = Field(
-        default_factory=list, description="List of tools called during agent execution"
+        default_factory=list, description="List of tools called during agent execution with their keyword arguments"
     )
+    
+    def generated_example(self) -> dict:
+        return {
+            "diagnostics": PromptDiagnostics.example(),
+            "tool_calls": [
+                ToolCall.example()
+            ],
+        } | self.example()
+        
+    @abstractmethod
+    def example(self) -> dict:
+        raise NotImplementedError("Subclasses must implement this method")
 
-class PromptDefaultResponse(PromptMeta, BaseModel):
+class PromptDefaultResponse(BasePromptResponse):
     """Default response format for prompts.
 
     This class provides a standardized response structure for AI agent interactions,
@@ -62,10 +105,12 @@ class PromptDefaultResponse(PromptMeta, BaseModel):
     """
 
     response: Optional[str] = Field(default="", description="Response to the prompt.")
-    tool_calls: Optional[List[ToolCall]] = Field(
-        default_factory=list, description="List of tools called during agent execution with their keyword arguments"
-    )
-
+    
+    @staticmethod
+    def example() -> dict:
+        return {
+            "response": "Response to the prompt."
+        }
 
 class Prompt(BaseModel):
     """A prompt template that can be rendered with variables.

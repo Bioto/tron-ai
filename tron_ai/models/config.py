@@ -17,7 +17,7 @@ class LLMClientConfig(BaseModel):
 
     model_name: str = "gpt-4o"
     logging: bool = False
-    json_output: bool = False
+    json_output: bool = True
     
     max_tokens: Optional[int] = None
     

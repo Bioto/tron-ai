@@ -3,6 +3,7 @@ from typing import Optional, Any, TYPE_CHECKING, List
 import logging
 import pprint
 from datetime import datetime, timedelta
+import ast
 
 # Import Component at module level since it's needed for inheritance
 from adalflow import Component
@@ -242,7 +243,7 @@ class LLMClient(Component):
         class GenericFactory(ModelFactory[output_data_class]):
             pass
 
-        format_str = GenericFactory().build().model_dump_json()
+        format_str = output_data_class().generated_example()
 
         return {"tools": tool_manager.yaml_definitions, "_output_format_str": format_str}
 
@@ -509,35 +510,35 @@ class LLMClient(Component):
                 user_query, all_tool_call_results, previous_tool_calls
             )
             
-            print("Formatted query:")
-            print(formatted_query)
-            
             # Make LLM call
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
-            
-            print("System prompt:")
-            print(system_prompt.build())
-            
+
             results = generator(
                 prompt_kwargs={
                     "_template": system_prompt.build(),
                     "_user_query": formatted_query,
+                    "_output_format_str": tool_prompt_kwargs["_output_format_str"],
                 }
                 | tool_prompt_kwargs | prompt_kwargs
             )
             
-            print("Prompt kwargs:")
-            print({
-                    "_template": system_prompt.build(),
-                    "_user_query": formatted_query,
-                }
-                | tool_prompt_kwargs | prompt_kwargs)
-         
-            print("Raw Response:")
-            print(results.raw_response)
-            print('\n\n\n')
-            cleaned = results.raw_response.replace('\n', '').replace('\r', '').rstrip().strip()
-            dataset = from_json(cleaned)
+            print("Results:")
+            print(type(results.data))
+            print(results.data)
+            print("\n"*5)
+            
+            if isinstance(results.data, str):
+                try:
+                    dataset = extract_json_from_string(results.data)
+                except ValueError:
+                    raise LLMResponseError(
+                        "Failed to extract or parse JSON from LLM response",
+                        raw_response=results.data,
+                        expected_format="JSON object"
+                    )
+            else:
+                dataset = results.data
+                
             if isinstance(dataset, list):
                 if len(dataset) == 1:
                     dataset = dataset[0]
@@ -707,12 +708,9 @@ Failed tool calls (with errors):
 {json.dumps(error_results_json)}
 
 Note: Some tool calls failed due to parameter errors. Please provide the best response you can based on the successful results, or explain what went wrong if all tools failed."""
+
+        format_str = system_prompt.output_format().generated_example()
         
-        class GenericFactory(ModelFactory[system_prompt.output_format]):
-            pass
-
-        format_str = GenericFactory().build().model_dump_json()
-
         results = generator(
             prompt_kwargs={
                 "_template": system_prompt.build(),
@@ -815,3 +813,20 @@ def get_llm_client_from_config(config: LLMClientConfig, client: Optional['ModelC
         
     """Get an LLMClient instance from a config."""
     return LLMClient(client=client, config=config)
+
+def extract_json_from_string(s: str) -> dict:
+    pos = s.find('{')
+    if pos == -1:
+        raise ValueError("No JSON object found")
+    level = 1
+    for j in range(pos + 1, len(s)):
+        if s[j] == '{':
+            level += 1
+        elif s[j] == '}':
+            level -= 1
+            if level == 0:
+                try:
+                    return json.loads(s[pos:j+1])
+                except json.JSONDecodeError:
+                    pass
+    raise ValueError("No valid JSON object found")

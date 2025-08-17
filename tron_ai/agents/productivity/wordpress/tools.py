@@ -8,6 +8,60 @@ from datetime import datetime
 
 logger = logging.getLogger(__name__)
 
+
+def create_post(title: str, content: str = "", excerpt: str = "", status: str = "draft",
+                categories: List[int] = None, tags: List[int] = None, 
+                featured_media: int = None, meta_description: str = "") -> Dict[str, Any]:
+    """Create a new WordPress post.
+    
+    args:
+        title: Post title
+        content: Post content (HTML allowed)
+        excerpt: Post excerpt
+        status: Post status (draft, publish, private, future)
+        categories: List of category IDs
+        tags: List of tag IDs
+        featured_media: Featured image media ID
+        meta_description: SEO meta description
+        
+    Returns:
+        Dict containing created post data with success status
+    """
+    try:
+        client = get_wordpress_client()
+        
+        post_data = {
+            "title": title,
+            "content": content,
+            "excerpt": excerpt,
+            "status": status
+        }
+        
+        if categories:
+            post_data["categories"] = categories
+        if tags:
+            post_data["tags"] = tags
+        if featured_media:
+            post_data["featured_media"] = featured_media
+        if meta_description:
+            post_data["meta"] = {"_yoast_wpseo_metadesc": meta_description}
+            
+        post = client.make_request("POST", "posts", data=post_data)
+        
+        return {
+            "success": True,
+            "post": post,
+            "post_id": post.get("id"),
+            "url": post.get("link")
+        }
+    except Exception as e:
+        return {
+            "success": False,
+            "error": str(e),
+            "post": None
+        }
+            
+            
 class WordPressTools:
     """Tools for interacting with the WordPress REST API for content management."""
     
@@ -132,59 +186,6 @@ class WordPressTools:
             }
     
     @staticmethod
-    def create_post(title: str, content: str = "", excerpt: str = "", status: str = "draft",
-                   categories: List[int] = None, tags: List[int] = None, 
-                   featured_media: int = None, meta_description: str = "") -> Dict[str, Any]:
-        """Create a new WordPress post.
-        
-        args:
-            title: Post title
-            content: Post content (HTML allowed)
-            excerpt: Post excerpt
-            status: Post status (draft, publish, private, future)
-            categories: List of category IDs
-            tags: List of tag IDs
-            featured_media: Featured image media ID
-            meta_description: SEO meta description
-            
-        Returns:
-            Dict containing created post data with success status
-        """
-        try:
-            client = get_wordpress_client()
-            
-            post_data = {
-                "title": title,
-                "content": content,
-                "excerpt": excerpt,
-                "status": status
-            }
-            
-            if categories:
-                post_data["categories"] = categories
-            if tags:
-                post_data["tags"] = tags
-            if featured_media:
-                post_data["featured_media"] = featured_media
-            if meta_description:
-                post_data["meta"] = {"_yoast_wpseo_metadesc": meta_description}
-                
-            post = client.make_request("POST", "posts", data=post_data)
-            
-            return {
-                "success": True,
-                "post": post,
-                "post_id": post.get("id"),
-                "url": post.get("link")
-            }
-        except Exception as e:
-            return {
-                "success": False,
-                "error": str(e),
-                "post": None
-            }
-    
-    @staticmethod
     def create_post_with_tag_names(title: str, content: str = "", excerpt: str = "", status: str = "draft",
                                   categories: List[int] = None, tag_names: List[str] = None, 
                                   featured_media: int = None, meta_description: str = "") -> Dict[str, Any]:
@@ -230,7 +231,7 @@ class WordPressTools:
                     }
             
             # Create the post with the resolved tag IDs
-            post_result = WordPressTools.create_post(
+            post_result = create_post(
                 title=title,
                 content=content,
                 excerpt=excerpt,

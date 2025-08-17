@@ -36,6 +36,7 @@ def get_llm_client():
         llm_client = get_llm_client_from_config(LLMClientConfig.build(model_name="gpt-4o", json_output=True))
     return llm_client
 
+
 class WordpressGeneratePostTools:
     @staticmethod
     async def generate_concept(state: PostState) -> PostState:
@@ -47,7 +48,7 @@ class WordpressGeneratePostTools:
         
         prompt = Prompt(
             text="""
-            You are a professional content writer, specializing in taking a simple idea and generating a concept for a blog post. Return only the concept, nothing else.
+            You are a professional content writer, specializing in taking a simple idea and generating a concept for a blog post. Return a single paragraph of text that captures the essence of the idea.
             """,
             output_format=PromptDefaultResponse
         )
@@ -59,6 +60,8 @@ class WordpressGeneratePostTools:
             {user_query}
             """
         )
+        
+        print("Request:")
         
         state.concept = request.response
         print(f"✅ Concept generated: {state.concept}")
@@ -483,6 +486,6 @@ class WordpressGeneratePost(BaseFlow):
         
 if __name__ == "__main__":
     import asyncio
-    flow = WordpressGeneratePost(name="WordpressGeneratePost", description="Generate a blog post about the user's query")
-    results = asyncio.run(flow.execute("Write a blog post about the benefits of using AI in marketing"))
+    flow = WordpressGeneratePost()
+    results = asyncio.run(flow.execute("generate a blog post about LLM's and prompting, aim for an article that will take ~3 minutes to read,"))
     print(results)
