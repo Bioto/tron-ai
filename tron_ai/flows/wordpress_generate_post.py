@@ -484,7 +484,7 @@ class WordpressGeneratePost(BaseFlow):
             "tags": self.state.tags,
             "keywords": self.state.keywords,
             "additional_instructions": '''
-            When responding to the user, show them the itle, meta description, tags, and keywords. If you do show them the content, make sure to show them the content show it in a code block
+                When responding to the user, show them the title, meta description, tags, and keywords. If you do show them the content, make sure to show it in a code block, formatted in HTML.
             '''
         }
         
