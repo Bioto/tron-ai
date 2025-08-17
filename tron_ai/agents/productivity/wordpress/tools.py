@@ -89,9 +89,6 @@ class WordPressTools:
         import asyncio
         result = asyncio.run(flow.execute(query=user_post_idea))
         
-        print("Returned result:")
-        print(result)
-        
         return {
             "success": True,
             "message": "Blog post made successfully",

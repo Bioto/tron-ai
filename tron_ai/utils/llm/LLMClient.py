@@ -137,8 +137,6 @@ class LLMClient(Component):
 
         model_kwargs = self._config.build_model_kwargs()
         
-        print(model_kwargs)
-        
         self._log(f"Building generator with model: {self._config.model_name}")
 
         if json_output:
@@ -153,36 +151,125 @@ class LLMClient(Component):
             output_processors=output_processors,
         )
 
-    def call(
-        self, user_query: str, system_prompt: Prompt, prompt_kwargs: dict = {}
-    ):
-        # Lazy imports
-        import pydantic
-        from pydantic_core import from_json
+    def _generate_format_string(self, output_format_class: type) -> str:
+        """Generate format string for output formatting.
+        
+        Args:
+            output_format_class: The output format class to generate format for
+            
+        Returns:
+            JSON string representation of the format
+        """
+        # Lazy import
         from polyfactory.factories.pydantic_factory import ModelFactory
         
-        self._log(f"Making API call with query: {user_query[:100]}...")
-        generator = self._build_generator()
-
-        class GenericFactory(ModelFactory[system_prompt.output_format]):
+        class GenericFactory(ModelFactory[output_format_class]):
             pass
 
-        format_str = GenericFactory().build().model_dump_json()
-        
-        results = generator(
-            prompt_kwargs={
-                "_template": system_prompt.build(**prompt_kwargs), 
-                "_user_query": user_query,
-                "_output_format_str": format_str,
-            } | prompt_kwargs
-        )
+        return GenericFactory().build().model_dump_json()
 
-        response = system_prompt.output_format(**from_json(results.raw_response))
-        self._log("Successfully parsed response")
-        # Ensure tool_calls is always attached only if the model supports it
+    def _generate_example_format_string(self, output_format_class: type) -> str:
+        """Generate example format string for output formatting.
+        
+        Args:
+            output_format_class: The output format class to generate format for
+            
+        Returns:
+            Example format string
+        """
+        return output_format_class().generated_example()
+
+    def _process_llm_response(self, results, output_format_class: type) -> Any:
+        """Process LLM response and convert to output format.
+        
+        Args:
+            results: Raw results from generator
+            output_format_class: Expected output format class
+            
+        Returns:
+            Processed response in the expected format
+        """
+        # Lazy import
+        from pydantic_core import from_json
+        
+        dataset = from_json(results.raw_response)
+        
+        # Handle list responses
+        if isinstance(dataset, list):
+            if len(dataset) == 1:
+                dataset = dataset[0]
+            else:
+                logger.warning(f"LLM returned list of {len(dataset)} items; taking first")
+                dataset = dataset[0]
+        
+        return output_format_class(**dataset)
+
+    def _ensure_tool_calls_field(self, response: Any) -> Any:
+        """Ensure tool_calls field is present if the model supports it.
+        
+        Args:
+            response: The response object to check
+            
+        Returns:
+            Response with tool_calls field ensured
+        """
         if self._supports_tool_calls(response):
             if not hasattr(response, 'tool_calls') or response.tool_calls is None:
                 response.tool_calls = []
+        return response
+
+    def _build_prompt_kwargs(
+        self, 
+        system_prompt: Prompt, 
+        user_query: str, 
+        format_str: str, 
+        prompt_kwargs: dict = {}
+    ) -> dict:
+        """Build common prompt kwargs for LLM calls.
+        
+        Args:
+            system_prompt: The system prompt to use
+            user_query: The user query
+            format_str: The output format string
+            prompt_kwargs: Additional prompt kwargs
+            
+        Returns:
+            Dictionary of prompt kwargs
+        """
+        return {
+            "_template": system_prompt.build(**prompt_kwargs),
+            "_user_query": user_query,
+            "_output_format_str": format_str,
+        } | prompt_kwargs
+
+    def call(
+        self, user_query: str, system_prompt: Prompt, prompt_kwargs: dict = {}
+    ):
+        """Make a simple LLM call without tool management.
+        
+        Args:
+            user_query: The user's query
+            system_prompt: The system prompt to use
+            prompt_kwargs: Additional prompt keyword arguments
+            
+        Returns:
+            The response from the LLM, processed according to the output format
+        """
+        self._log(f"Making API call with query: {user_query[:100]}...")
+        
+        generator = self._build_generator()
+        format_str = self._generate_format_string(system_prompt.output_format)
+        
+        results = generator(
+            prompt_kwargs=self._build_prompt_kwargs(
+                system_prompt, user_query, format_str, prompt_kwargs
+            )
+        )
+
+        response = self._process_llm_response(results, system_prompt.output_format)
+        response = self._ensure_tool_calls_field(response)
+        
+        self._log("Successfully parsed response")
         return response
 
     def fcall(
@@ -209,11 +296,8 @@ class LLMClient(Component):
             result = self._execute_direct_call(
                 generator, system_prompt, user_query, []
             )
-            # Ensure tool_calls is always attached only if the model supports it
-            if self._supports_tool_calls(result):
-                if not hasattr(result, 'tool_calls') or result.tool_calls is None:
-                    result.tool_calls = []
-            return result
+            return self._ensure_tool_calls_field(result)
+        
         # Execute with tool management
         return self._execute_with_tools(
             generator,
@@ -235,16 +319,8 @@ class LLMClient(Component):
         Returns:
             Dictionary of prompt kwargs
         """
-        # Lazy import
-        from polyfactory.factories.pydantic_factory import ModelFactory
-        
         logger.info(f"Tool manager provided with {len(tool_manager.tools)} tools")
- 
-        class GenericFactory(ModelFactory[output_data_class]):
-            pass
-
-        format_str = output_data_class().generated_example()
-
+        format_str = self._generate_example_format_string(output_data_class)
         return {"tools": tool_manager.yaml_definitions, "_output_format_str": format_str}
 
     def _format_query_with_results(self, query: str, tool_results: list, previous_tool_calls: list = None) -> str:
@@ -337,9 +413,6 @@ class LLMClient(Component):
             # Normalize tool_call to ensure kwargs are properly separated
             normalized_tool_call = tool_call.copy()
             
-            print("Normalized tool call:")
-            print(normalized_tool_call)
-            
             # If args contains a dict, move it to kwargs
             if 'args' in normalized_tool_call and isinstance(normalized_tool_call['args'], dict):
                 normalized_tool_call['kwargs'] = normalized_tool_call['kwargs'] | normalized_tool_call['args']
@@ -348,12 +421,10 @@ class LLMClient(Component):
             if not hasattr(normalized_tool_call, 'args'):
                 normalized_tool_call['args'] = []
                 
-            print("Normalized tool call2:")
-            print(normalized_tool_call)
             tool = Function.from_dict(normalized_tool_call)
             logger.debug(f"Tool: {tool!r}")
             logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-            print(tool)
+            
             # Execute tool using the manager
             try:
                 tool_result = tool_manager.execute_func(tool)
@@ -460,24 +531,18 @@ class LLMClient(Component):
             user_query: User query
             tool_manager: Tool manager instance
             prompt_kwargs: Additional prompt kwargs
-            output_data_class: Output data class
 
         Returns:
             Processed response
         """
         # Lazy imports
         import orjson
-        from pydantic_core import from_json
         
         # Check cache first
         cache_key = f"{user_query}:{orjson.dumps(prompt_kwargs)}"
         cached_response = self._get_cached_response(cache_key)
         if cached_response:
-            # Ensure tool_calls is always attached only if the model supports it
-            if self._supports_tool_calls(cached_response):
-                if not hasattr(cached_response, 'tool_calls') or cached_response.tool_calls is None:
-                    cached_response.tool_calls = []
-            return cached_response
+            return self._ensure_tool_calls_field(cached_response)
 
         # Prepare tool-specific prompt kwargs
         tool_prompt_kwargs = self._prepare_tool_prompt_kwargs(
@@ -502,9 +567,6 @@ class LLMClient(Component):
                 all_tool_call_results
             )
             
-            print("All tool call results:")
-            print(all_tool_call_results)
-            
             # Format query with previous results and calls
             formatted_query = self._format_query_with_results(
                 user_query, all_tool_call_results, previous_tool_calls
@@ -514,18 +576,10 @@ class LLMClient(Component):
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
 
             results = generator(
-                prompt_kwargs={
-                    "_template": system_prompt.build(),
-                    "_user_query": formatted_query,
-                    "_output_format_str": tool_prompt_kwargs["_output_format_str"],
-                }
-                | tool_prompt_kwargs | prompt_kwargs
+                prompt_kwargs=self._build_prompt_kwargs(
+                    system_prompt, formatted_query, tool_prompt_kwargs["_output_format_str"]
+                ) | tool_prompt_kwargs | prompt_kwargs
             )
-            
-            print("Results:")
-            print(type(results.data))
-            print(results.data)
-            print("\n"*5)
             
             if isinstance(results.data, str):
                 try:
@@ -586,7 +640,7 @@ class LLMClient(Component):
             # Check if any of the new results are errors
             has_errors = any(hasattr(r, 'error') and r.error is not None for r in new_results)
             if has_errors:
-                logger.info(f"[LLM_ITERATION] Tool execution resulted in errors, will retry with backoff")
+                logger.info("[LLM_ITERATION] Tool execution resulted in errors, will retry with backoff")
                 # Apply backoff only on errors
                 import time
                 backoff_delay = RETRY_BACKOFF_FACTOR ** error_retries
@@ -665,10 +719,6 @@ class LLMClient(Component):
         Returns:
             Processed response
         """
-        # Lazy imports
-        from pydantic_core import from_json
-        from polyfactory.factories.pydantic_factory import ModelFactory
-        
         logger.info("Making direct call without tool manager")
 
         formatted_query = f"""User query:
@@ -709,34 +759,20 @@ Failed tool calls (with errors):
 
 Note: Some tool calls failed due to parameter errors. Please provide the best response you can based on the successful results, or explain what went wrong if all tools failed."""
 
-        format_str = system_prompt.output_format().generated_example()
+        format_str = self._generate_example_format_string(system_prompt.output_format)
         
         results = generator(
-            prompt_kwargs={
-                "_template": system_prompt.build(),
-                "_user_query": formatted_query,
-                "_output_format_str": format_str,
-            }
+            prompt_kwargs=self._build_prompt_kwargs(
+                system_prompt, formatted_query, format_str
+            )
         )
         
-        dataset = from_json(results.raw_response)
-        if isinstance(dataset, list):
-            if len(dataset) == 1:
-                dataset = dataset[0]
-            else:
-                logger.warning(f"LLM returned list of {len(dataset)} items in direct call; taking first")
-                dataset = dataset[0]
-
-        
-        response = system_prompt.output_format(**dataset)
-        print("Response:")
-        print(response)
+        response = self._process_llm_response(results, system_prompt.output_format)
         self._log("Successfully processed response")
+        
         if self._supports_tool_calls(response):
-            print("Building tool calls list")
-            print(tool_results)
             response.tool_calls = self._build_tool_calls_list(tool_results)
-        print("Past tool calls")
+        
         return response
 
     def _get_cached_response(self, key: str) -> Optional[Any]:

@@ -72,7 +72,7 @@ def get_env_path() -> Path:
 # Get default levels from environment variables with fallbacks
 
 DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "WARNING")
-DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "WARNING")
+DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "INFO")
 DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "WARNING")
 DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "WARNING")
 
@@ -213,6 +213,11 @@ LOGGING_CONFIG = {
         "tron_ai.utils.graph.graph": {
             "handlers": ["rich"],
             "level": DEFAULT_UTILITY_LEVEL,
+            "propagate": False,
+        },
+        "tron_ai.flows.wordpress_generate_post": {
+            "handlers": ["rich"],
+            "level": DEFAULT_APP_LEVEL,
             "propagate": False,
         },
     },

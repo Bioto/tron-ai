@@ -2,7 +2,7 @@ from typing import List, Optional, Type, Dict, Any
 from abc import ABC, abstractmethod
 import pydantic
 from pydantic import BaseModel, Field
-
+import json
 from jinja2 import Template
 
 
@@ -78,13 +78,13 @@ class BasePromptResponse(PromptMeta, BaseModel, ABC):
         default_factory=list, description="List of tools called during agent execution with their keyword arguments"
     )
     
-    def generated_example(self) -> dict:
-        return {
+    def generated_example(self) -> str:
+        return json.dumps({
             "diagnostics": PromptDiagnostics.example(),
             "tool_calls": [
                 ToolCall.example()
             ],
-        } | self.example()
+        } | self.example())
         
     @abstractmethod
     def example(self) -> dict:
