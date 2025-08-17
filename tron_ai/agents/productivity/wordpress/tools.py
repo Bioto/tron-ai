@@ -1,6 +1,7 @@
 # tron_ai/agents/productivity/wordpress/tools.py
 from typing import List, Dict, Any, Optional
 from tron_ai.agents.productivity.wordpress.utils import get_wordpress_client
+from tron_ai.flows.wordpress_generate_post import WordpressGeneratePost
 import json
 import logging
 from datetime import datetime
@@ -11,13 +12,53 @@ class WordPressTools:
     """Tools for interacting with the WordPress REST API for content management."""
     
     @staticmethod
+    def make_blog_post(user_post_idea: str) -> str:
+        """Generate a comprehensive blog post about the input's concept, idea, or topic.
+        This automated process generates a complete blog post including title, content, tags, categories, 
+        meta descriptions, and other metadata. Note: This only generates the blog post content - it does NOT publish it to WordPress.
+        args:
+            input(required): The main topic, idea, or theme for the blog post. Examples:
+                  - Simple topics: "artificial intelligence", "healthy cooking", "digital marketing"
+                  - Questions: "How to improve team productivity?", "What is blockchain technology?"
+                  - Specific concepts: "The impact of remote work on company culture"
+                  - Business angles: "Why startups should invest in cybersecurity"
+                  - How-to guides: "Complete guide to social media marketing for beginners"
+                  - Opinion pieces: "The future of electric vehicles in urban transportation"
+                  - Trend analysis: "Top web design trends for 2024"
+                  - Problem-solution: "Solving customer retention challenges in e-commerce"
+        """
+        # try:
+        # Import the flow and execute it
+        flow = WordpressGeneratePost()
+        
+        # Execute the flow asynchronously
+        import asyncio
+        result = asyncio.run(flow.execute(query=user_post_idea))
+        
+        print("Returned result:")
+        print(result)
+        
+        return {
+            "success": True,
+            "message": "Blog post made successfully",
+            "result": json.dumps(result)
+        }
+    
+        # except Exception as e:
+        #     logger.error(f"Error generating blog post: {str(e)}")
+        #     return {
+        #         "success": False,
+        #         "error": str(e),
+        #         "blog_post": None
+        #     }
+
+    @staticmethod
     def get_posts(per_page: int = 10, page: int = 1, search: str = None, 
                   status: str = "publish", author: int = None, categories: List[int] = None,
-                  tags: List[int] = None, order: str = "desc", orderby: str = "date",
-                  session_id: str = None) -> Dict[str, Any]:
+                  tags: List[int] = None, order: str = "desc", orderby: str = "date") -> Dict[str, Any]:
         """Get WordPress posts with filtering and pagination.
         
-        Args:
+        args:
             per_page: Number of posts per page (max 100)
             page: Page number for pagination
             search: Search query for posts
@@ -27,15 +68,10 @@ class WordPressTools:
             tags: List of tag IDs to filter by
             order: Sort order (asc, desc)
             orderby: Sort by field (date, title, slug, etc.)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of post dictionaries with success status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_posts called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_posts called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -71,20 +107,15 @@ class WordPressTools:
             }
     
     @staticmethod
-    def get_post(post_id: int, session_id: str = None) -> Dict[str, Any]:
+    def get_post(post_id: int) -> Dict[str, Any]:
         """Get a specific WordPress post by ID.
         
-        Args:
+        args:
             post_id: WordPress post ID
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing post data with success status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_post called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_post called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             post = client.make_request("GET", f"posts/{post_id}")
@@ -103,11 +134,10 @@ class WordPressTools:
     @staticmethod
     def create_post(title: str, content: str = "", excerpt: str = "", status: str = "draft",
                    categories: List[int] = None, tags: List[int] = None, 
-                   featured_media: int = None, meta_description: str = "",
-                   session_id: str = None) -> Dict[str, Any]:
+                   featured_media: int = None, meta_description: str = "") -> Dict[str, Any]:
         """Create a new WordPress post.
         
-        Args:
+        args:
             title: Post title
             content: Post content (HTML allowed)
             excerpt: Post excerpt
@@ -116,15 +146,10 @@ class WordPressTools:
             tags: List of tag IDs
             featured_media: Featured image media ID
             meta_description: SEO meta description
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing created post data with success status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] create_post called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "create_post called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -162,11 +187,10 @@ class WordPressTools:
     @staticmethod
     def create_post_with_tag_names(title: str, content: str = "", excerpt: str = "", status: str = "draft",
                                   categories: List[int] = None, tag_names: List[str] = None, 
-                                  featured_media: int = None, meta_description: str = "",
-                                  session_id: str = None) -> Dict[str, Any]:
+                                  featured_media: int = None, meta_description: str = "") -> Dict[str, Any]:
         """Create a new WordPress post with tag names (auto-creates missing tags).
         
-        Args:
+        args:
             title: Post title
             content: Post content (HTML allowed)
             excerpt: Post excerpt
@@ -175,15 +199,10 @@ class WordPressTools:
             tag_names: List of tag names (will be created if they don't exist)
             featured_media: Featured image media ID
             meta_description: SEO meta description
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing created post data with tag creation details
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] create_post_with_tag_names called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "create_post_with_tag_names called without session_id. Session tracking will break."
         try:
             tag_ids = []
             tag_creation_info = {
@@ -194,7 +213,7 @@ class WordPressTools:
             
             # Convert tag names to IDs, creating tags as needed
             if tag_names:
-                tag_result = WordPressTools.find_or_create_tags(tag_names=tag_names, session_id=session_id)
+                tag_result = WordPressTools.find_or_create_tags(tag_names=tag_names)
                 if tag_result["success"]:
                     tag_ids = tag_result["tag_ids"]
                     tag_creation_info = {
@@ -219,8 +238,7 @@ class WordPressTools:
                 categories=categories,
                 tags=tag_ids,
                 featured_media=featured_media,
-                meta_description=meta_description,
-                session_id=session_id
+                meta_description=meta_description
             )
             
             if post_result["success"]:
@@ -251,10 +269,10 @@ class WordPressTools:
     def update_post(post_id: int, title: str = None, content: str = None, 
                    excerpt: str = None, status: str = None, categories: List[int] = None,
                    tags: List[int] = None, featured_media: int = None, 
-                   meta_description: str = None, session_id: str = None) -> Dict[str, Any]:
+                   meta_description: str = None) -> Dict[str, Any]:
         """Update an existing WordPress post.
         
-        Args:
+        args:
             post_id: WordPress post ID to update
             title: New post title
             content: New post content
@@ -264,15 +282,10 @@ class WordPressTools:
             tags: New list of tag IDs
             featured_media: New featured image media ID
             meta_description: New SEO meta description
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing updated post data with success status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] update_post called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "update_post called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -313,10 +326,10 @@ class WordPressTools:
     def update_post_with_tag_names(post_id: int, title: str = None, content: str = None, 
                                   excerpt: str = None, status: str = None, categories: List[int] = None,
                                   tag_names: List[str] = None, featured_media: int = None, 
-                                  meta_description: str = None, session_id: str = None) -> Dict[str, Any]:
+                                  meta_description: str = None) -> Dict[str, Any]:
         """Update an existing WordPress post with tag names (auto-creates missing tags).
         
-        Args:
+        args:
             post_id: WordPress post ID to update
             title: New post title
             content: New post content
@@ -326,15 +339,10 @@ class WordPressTools:
             tag_names: New list of tag names (will be created if they don't exist)
             featured_media: New featured image media ID
             meta_description: New SEO meta description
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing updated post data with tag creation details
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] update_post_with_tag_names called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "update_post_with_tag_names called without session_id. Session tracking will break."
         try:
             tag_ids = None
             tag_creation_info = {
@@ -345,7 +353,7 @@ class WordPressTools:
             
             # Convert tag names to IDs, creating tags as needed
             if tag_names is not None:
-                tag_result = WordPressTools.find_or_create_tags(tag_names=tag_names, session_id=session_id)
+                tag_result = WordPressTools.find_or_create_tags(tag_names=tag_names)
                 if tag_result["success"]:
                     tag_ids = tag_result["tag_ids"]
                     tag_creation_info = {
@@ -371,8 +379,7 @@ class WordPressTools:
                 categories=categories,
                 tags=tag_ids,
                 featured_media=featured_media,
-                meta_description=meta_description,
-                session_id=session_id
+                meta_description=meta_description
             )
             
             if post_result["success"]:
@@ -400,21 +407,16 @@ class WordPressTools:
             }
     
     @staticmethod
-    def delete_post(post_id: int, force: bool = False, session_id: str = None) -> Dict[str, Any]:
+    def delete_post(post_id: int, force: bool = False) -> Dict[str, Any]:
         """Delete a WordPress post.
         
-        Args:
+        args:
             post_id: WordPress post ID to delete
             force: Whether to permanently delete (true) or move to trash (false)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing deletion status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] delete_post called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "delete_post called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -434,22 +436,16 @@ class WordPressTools:
             }
     
     @staticmethod
-    def get_categories(per_page: int = 50, search: str = None, 
-                      session_id: str = None) -> Dict[str, Any]:
+    def get_categories(per_page: int = 50, search: str = None) -> Dict[str, Any]:
         """Get WordPress categories.
         
-        Args:
+        args:
             per_page: Number of categories per page (max 100)
             search: Search query for categories
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of category dictionaries
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_categories called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_categories called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -472,23 +468,17 @@ class WordPressTools:
             }
     
     @staticmethod
-    def create_category(name: str, description: str = "", parent: int = None,
-                       session_id: str = None) -> Dict[str, Any]:
+    def create_category(name: str, description: str = "", parent: int = None) -> Dict[str, Any]:
         """Create a new WordPress category.
         
-        Args:
+        args:
             name: Category name
             description: Category description
             parent: Parent category ID (for hierarchical categories)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing created category data
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] create_category called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "create_category called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -514,22 +504,16 @@ class WordPressTools:
             }
     
     @staticmethod
-    def get_tags(per_page: int = 50, search: str = None, 
-                session_id: str = None) -> Dict[str, Any]:
+    def get_tags(per_page: int = 50, search: str = None) -> Dict[str, Any]:
         """Get WordPress tags.
         
-        Args:
+        args:
             per_page: Number of tags per page (max 100)
             search: Search query for tags
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of tag dictionaries
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_tags called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_tags called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -552,21 +536,16 @@ class WordPressTools:
             }
     
     @staticmethod
-    def create_tag(name: str, description: str = "", session_id: str = None) -> Dict[str, Any]:
+    def create_tag(name: str, description: str = "") -> Dict[str, Any]:
         """Create a new WordPress tag.
         
-        Args:
+        args:
             name: Tag name
             description: Tag description
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing created tag data
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] create_tag called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "create_tag called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -590,20 +569,15 @@ class WordPressTools:
             }
     
     @staticmethod
-    def get_tag(tag_id: int, session_id: str = None) -> Dict[str, Any]:
+    def get_tag(tag_id: int) -> Dict[str, Any]:
         """Get a specific WordPress tag by ID.
         
-        Args:
+        args:
             tag_id: WordPress tag ID
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing tag data with success status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_tag called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_tag called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             tag = client.make_request("GET", f"tags/{tag_id}")
@@ -620,21 +594,16 @@ class WordPressTools:
             }
     
     @staticmethod
-    def delete_tag(tag_id: int, force: bool = False, session_id: str = None) -> Dict[str, Any]:
+    def delete_tag(tag_id: int, force: bool = False) -> Dict[str, Any]:
         """Delete a WordPress tag.
         
-        kwargs:
+        args:
             tag_id: WordPress tag ID to delete
             force: Whether to permanently delete (true) or move to trash (false)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing deletion status
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] delete_tag called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "delete_tag called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -672,19 +641,12 @@ class WordPressTools:
                 }
     
     @staticmethod
-    def check_api_capabilities(session_id: str = None) -> Dict[str, Any]:
+    def check_api_capabilities() -> Dict[str, Any]:
         """Check what WordPress REST API capabilities are available.
-        
-        Args:
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing available API capabilities and endpoints
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] check_api_capabilities called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "check_api_capabilities called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -736,20 +698,15 @@ class WordPressTools:
             }
     
     @staticmethod
-    def find_or_create_tags(tag_names: List[str], session_id: str = None) -> Dict[str, Any]:
+    def find_or_create_tags(tag_names: List[str]) -> Dict[str, Any]:
         """Find existing tags by name or create new ones. Returns list of tag IDs.
         
         Args:
             tag_names: List of tag names to find or create
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of tag IDs and creation details
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] find_or_create_tags called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "find_or_create_tags called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             tag_ids = []
@@ -782,7 +739,7 @@ class WordPressTools:
                         })
                     else:
                         # Tag doesn't exist, create it
-                        new_tag_result = WordPressTools.create_tag(name=tag_name, session_id=session_id)
+                        new_tag_result = WordPressTools.create_tag(name=tag_name)
                         if new_tag_result["success"]:
                             tag_id = new_tag_result["tag_id"]
                             tag_ids.append(tag_id)
@@ -815,23 +772,17 @@ class WordPressTools:
             }
     
     @staticmethod
-    def get_media(per_page: int = 10, search: str = None, media_type: str = None,
-                 session_id: str = None) -> Dict[str, Any]:
+    def get_media(per_page: int = 10, search: str = None, media_type: str = None) -> Dict[str, Any]:
         """Get WordPress media items.
         
         Args:
             per_page: Number of media items per page (max 100)
             search: Search query for media
             media_type: Filter by media type (image, video, audio, etc.)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of media dictionaries
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_media called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_media called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -857,7 +808,7 @@ class WordPressTools:
     
     @staticmethod
     def upload_media(file_path: str, title: str = "", description: str = "",
-                    alt_text: str = "", session_id: str = None) -> Dict[str, Any]:
+                    alt_text: str = "") -> Dict[str, Any]:
         """Upload a media file to WordPress.
         
         Args:
@@ -865,15 +816,10 @@ class WordPressTools:
             title: Media title
             description: Media description
             alt_text: Alt text for images
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing uploaded media data
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] upload_media called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "upload_media called without session_id. Session tracking will break."
         try:
             import os
             import mimetypes
@@ -933,7 +879,7 @@ class WordPressTools:
     
     @staticmethod
     def get_pages(per_page: int = 10, search: str = None, status: str = "publish",
-                 order: str = "desc", orderby: str = "date", session_id: str = None) -> Dict[str, Any]:
+                 order: str = "desc", orderby: str = "date") -> Dict[str, Any]:
         """Get WordPress pages.
         
         Args:
@@ -942,15 +888,10 @@ class WordPressTools:
             status: Page status (publish, draft, private, etc.)
             order: Sort order (asc, desc)
             orderby: Sort by field (date, title, slug, etc.)
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing list of page dictionaries
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] get_pages called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "get_pages called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             
@@ -980,7 +921,7 @@ class WordPressTools:
     
     @staticmethod
     def create_page(title: str, content: str = "", status: str = "draft",
-                   parent: int = None, template: str = "", session_id: str = None) -> Dict[str, Any]:
+                   parent: int = None, template: str = "") -> Dict[str, Any]:
         """Create a new WordPress page.
         
         Args:
@@ -989,15 +930,10 @@ class WordPressTools:
             status: Page status (draft, publish, private)
             parent: Parent page ID (for hierarchical pages)
             template: Page template to use
-            session_id: Session ID for session tracking
             
         Returns:
             Dict containing created page data
         """
-        if False:  # Replace with actual sub-agent call check if added
-            if not session_id:
-                logger.warning("[SESSION] create_page called without session_id! This will break session tracking. Please propagate session_id from the parent context.")
-                assert False, "create_page called without session_id. Session tracking will break."
         try:
             client = get_wordpress_client()
             

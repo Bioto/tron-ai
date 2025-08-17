@@ -72,7 +72,7 @@ def get_env_path() -> Path:
 # Get default levels from environment variables with fallbacks
 
 DEFAULT_ROOT_LEVEL = os.getenv("TRON_LOG_LEVEL_ROOT", "WARNING")
-DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "DEBUG")
+DEFAULT_APP_LEVEL = os.getenv("TRON_LOG_LEVEL_tron_ai", "WARNING")
 DEFAULT_THIRD_PARTY_LEVEL = os.getenv("TRON_LOG_LEVEL_THIRD_PARTY", "WARNING")
 DEFAULT_UTILITY_LEVEL = os.getenv("TRON_LOG_LEVEL_UTILITY", "WARNING")
 

@@ -129,16 +129,15 @@ class LLMClient(Component):
         # Lazy import Generator
         from adalflow import Generator
         
-        json_output = (
-            override_json_format
-            if override_json_format is not None
-            else self._config.json_output
-        )
+        if hasattr(self._config, 'json_output'):
+            json_output = self._config.json_output
+        else:
+            json_output = False
 
-        model_kwargs = {
-            "model": self._config.model_name,
-            "temperature": LLM_DEFAULT_TEMPERATURE,
-        }
+        model_kwargs = self._config.build_model_kwargs()
+        
+        print(model_kwargs)
+        
         self._log(f"Building generator with model: {self._config.model_name}")
 
         if json_output:
@@ -337,15 +336,23 @@ class LLMClient(Component):
             # Normalize tool_call to ensure kwargs are properly separated
             normalized_tool_call = tool_call.copy()
             
+            print("Normalized tool call:")
+            print(normalized_tool_call)
+            
             # If args contains a dict, move it to kwargs
             if 'args' in normalized_tool_call and isinstance(normalized_tool_call['args'], dict):
-                normalized_tool_call['kwargs'] = normalized_tool_call['args']
-                normalized_tool_call['args'] = ()
-            
+                normalized_tool_call['kwargs'] = normalized_tool_call['kwargs'] | normalized_tool_call['args']
+                normalized_tool_call['args'] = []
+                
+            if not hasattr(normalized_tool_call, 'args'):
+                normalized_tool_call['args'] = []
+                
+            print("Normalized tool call2:")
+            print(normalized_tool_call)
             tool = Function.from_dict(normalized_tool_call)
             logger.debug(f"Tool: {tool!r}")
             logger.info(f"[TOOL_EXECUTION] Tool {i+1}/{len(tool_calls)}: {tool.name} with args={tool.args}, kwargs={tool.kwargs}")
-
+            print(tool)
             # Execute tool using the manager
             try:
                 tool_result = tool_manager.execute_func(tool)
@@ -509,7 +516,17 @@ class LLMClient(Component):
                 }
                 | tool_prompt_kwargs | prompt_kwargs
             )
-            dataset = from_json(results.raw_response)
+            print("Results:")
+            print(results)
+            print('--------------------------------')
+            print(results.raw_response)
+            
+            print(f"Raw response: {repr(results.raw_response)}")
+            print(f"Length: {len(results.raw_response)}")
+            cleaned = results.raw_response.replace('\n', '').replace('\r', '').rstrip().strip()
+            print(f"Cleaned: {repr(cleaned)}")
+            print(f"Character at position 309: {repr(cleaned[308:312]) if len(cleaned) > 308 else 'N/A'}")
+            dataset = from_json(cleaned)
             if isinstance(dataset, list):
                 if len(dataset) == 1:
                     dataset = dataset[0]
@@ -692,7 +709,7 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
                 "_output_format_str": format_str,
             }
         )
-
+        
         dataset = from_json(results.raw_response)
         if isinstance(dataset, list):
             if len(dataset) == 1:
@@ -701,10 +718,16 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
                 logger.warning(f"LLM returned list of {len(dataset)} items in direct call; taking first")
                 dataset = dataset[0]
 
+        
         response = system_prompt.output_format(**dataset)
+        print("Response:")
+        print(response)
         self._log("Successfully processed response")
         if self._supports_tool_calls(response):
+            print("Building tool calls list")
+            print(tool_results)
             response.tool_calls = self._build_tool_calls_list(tool_results)
+        print("Past tool calls")
         return response
 
     def _get_cached_response(self, key: str) -> Optional[Any]:
@@ -742,7 +765,8 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
 
 
 def get_llm_client(
-    model_name: str = "gpt-4o",
+    model_name: str = "gpt-5",
+    model_kwargs: dict = {},
     json_output: bool = False,
     logging: bool = False,
     client: Optional['ModelClient'] = None,
@@ -770,4 +794,13 @@ def get_llm_client(
         model_name=model_name, json_output=json_output, logging=logging
     )
 
+    return LLMClient(client=client, config=config)
+
+def get_llm_client_from_config(config: LLMClientConfig, client: Optional['ModelClient'] = None) -> "LLMClient":
+    # Lazy import OpenAIClient only when needed
+    if client is None:
+        from adalflow import OpenAIClient
+        client = OpenAIClient()
+        
+    """Get an LLMClient instance from a config."""
     return LLMClient(client=client, config=config)

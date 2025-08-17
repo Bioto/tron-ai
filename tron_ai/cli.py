@@ -13,8 +13,14 @@ from rich.panel import Panel
 from rich.markdown import Markdown
 from rich.table import Table
 
-
 from tron_ai.config import setup_logging
+
+from dotenv import load_dotenv
+
+from tron_ai.models.config import ChatGPT5LowConfig, ChatGPT5MediumConfig, ChatGPT5HighConfig, LLMClientConfig
+from tron_ai.utils.llm.LLMClient import get_llm_client_from_config
+
+load_dotenv()
 
 os.environ["ANONYMIZED_TELEMETRY"] = "False"
 os.environ["MEM0_TELEMETRY"] = "False"
@@ -255,19 +261,17 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     from tron_ai.database.config import DatabaseConfig
     from tron_ai.database.manager import DatabaseManager
     from tron_ai.models.executors import ExecutorConfig
-    from tron_ai.utils.llm.LLMClient import get_llm_client
     from tron_ai.executors.agent import AgentExecutor
     from tron_ai.executors.swarm.executor import SwarmExecutor
     from tron_ai.executors.swarm.models import SwarmState
-    from adalflow.components.model_client import OpenAIClient
-    
+        
     console = Console()
     db_config = DatabaseConfig()
     db_manager = DatabaseManager(db_config)
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
     
-    client = get_llm_client(json_output=True)
+    client = get_llm_client_from_config(ChatGPT5HighConfig(reasoning_effort="low"))
     
     # Check if an MCP agent was requested
     if mcp_agent:
@@ -448,190 +452,190 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     console.print(header)
     triggered = user_query is None
     while True:
-        try:
-            if triggered:
-                user_input = RichPrompt.ask("[bold green]You[/bold green]")
-            else:
-                user_input = user_query
-                triggered = True
-            if user_input.strip().lower() in ["exit", "quit", "bye"]:
-                console.print(Panel("[bold yellow]Goodbye![/bold yellow]", style="yellow"))
-                break
-            # Get conversation history for context
-            conversation_history = await db_manager.get_conversation_history(session_id, max_messages=20)
-            context = ""
-            if conversation_history:
-                context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
-            full_query = f"{context}\n" 
-            full_query += f"User Input: {user_input}"
+        # try:
+        if triggered:
+            user_input = RichPrompt.ask("[bold green]You[/bold green]")
+        else:
+            user_input = user_query
+            triggered = True
+        if user_input.strip().lower() in ["exit", "quit", "bye"]:
+            console.print(Panel("[bold yellow]Goodbye![/bold yellow]", style="yellow"))
+            break
+        # Get conversation history for context
+        conversation_history = await db_manager.get_conversation_history(session_id, max_messages=20)
+        context = ""
+        if conversation_history:
+            context = f"## Conversation History\n{json.dumps(conversation_history, indent=2)}"
+        full_query = f"{context}\n" 
+        full_query += f"User Input: {user_input}"
 
-            # Add user message to database
-            await db_manager.add_message(
-                session_id=session_id,
-                role="user",
-                content=user_input,
-                meta=None
-            )
-            # Show user message in a panel
-            user_panel = Panel(
-                Align.left(f"[bold green]You:[/bold green] {user_input}"),
-                style="green",
-                title=f"{datetime.now():%H:%M:%S}",
-                border_style="green"
-            )
-            console.print(user_panel)
-            # Execute agent with timing and spinner
-            start_time = time.time()
-            with console.status("[bold blue]Assistant is thinking...[/bold blue]", spinner="dots"):
-                if mode == "regular":
-                    response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
-                else:
-                    swarm_state = SwarmState(agents=all_agents)
-                    swarm_executor = SwarmExecutor(
-                        state=swarm_state,
-                        config=ExecutorConfig(
-                            client=client,
-                            logging=True,
-                        ),
-                    )
-                    response = await swarm_executor.execute(user_query=full_query.rstrip())
-            execution_time_ms = int((time.time() - start_time) * 1000)
-            
-            # Add agent session to database
-            agent_name = "swarm" if mode == "swarm" else agent_instance.name
-            if hasattr(response, "task_report") and callable(response.task_report):
-                agent_response_val = response.task_report()
-            elif hasattr(response, "response") and response.response is not None:
-                agent_response_val = response.response
-            elif hasattr(response, "generated_output"):
-                agent_response_val = response.generated_output
-            else:
-                agent_response_val = ""
-            agent_response_str = json.dumps(agent_response_val) if isinstance(agent_response_val, dict) else str(agent_response_val)
-            await db_manager.add_agent_session(
-                session_id=session_id,
-                agent_name=agent_name,
-                user_query=user_input,
-                agent_response=agent_response_str,
-                tool_calls=getattr(response, 'tool_calls', None),
-                execution_time_ms=execution_time_ms,
-                success=True,
-                meta=None
-            )
-            # Add assistant message to database
-            if hasattr(response, "task_report") and callable(response.task_report):
-                md_content = response.task_report()
-            elif hasattr(response, "response") and response.response:
-                md_content = response.response
-            elif hasattr(response, "generated_output") and response.generated_output:
-                md_content = response.generated_output
-            else:
-                md_content = ""
-            
-            if isinstance(md_content, dict):
-                md_content = json.dumps(md_content)
-            else:
-                md_content = str(md_content)
-            await db_manager.add_message(
-                session_id=session_id,
-                role="assistant",
-                content=md_content,
-                agent_name=agent_name,
-                tool_calls=getattr(response, 'tool_calls', None),
-                meta=None
-            )
-            
+        # Add user message to database
+        await db_manager.add_message(
+            session_id=session_id,
+            role="user",
+            content=user_input,
+            meta=None
+        )
+        # Show user message in a panel
+        user_panel = Panel(
+            Align.left(f"[bold green]You:[/bold green] {user_input}"),
+            style="green",
+            title=f"{datetime.now():%H:%M:%S}",
+            border_style="green"
+        )
+        console.print(user_panel)
+        # Execute agent with timing and spinner
+        start_time = time.time()
+        with console.status("[bold blue]Assistant is thinking...[/bold blue]", spinner="dots"):
             if mode == "regular":
-                md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+                response = await executor.execute(user_query=full_query.rstrip(), agent=agent_instance)
             else:
-                # For swarm mode, check if tasks were actually generated
-                if hasattr(response, 'response') and response.response:
-                    md_content = response.response
-                elif hasattr(response, 'tasks') and response.tasks:
-                    md_content = response.task_report()
-                elif hasattr(response, 'report') and response.report:
-                    md_content = response.report
-                else:
-                    md_content = getattr(response, "generated_output", "No response generated")
+                swarm_state = SwarmState(agents=all_agents)
+                swarm_executor = SwarmExecutor(
+                    state=swarm_state,
+                    config=ExecutorConfig(
+                        client=client,
+                        logging=True,
+                    ),
+                )
+                response = await swarm_executor.execute(user_query=full_query.rstrip())
+        execution_time_ms = int((time.time() - start_time) * 1000)
+        
+        # Add agent session to database
+        agent_name = "swarm" if mode == "swarm" else agent_instance.name
+        if hasattr(response, "task_report") and callable(response.task_report):
+            agent_response_val = response.task_report()
+        elif hasattr(response, "response") and response.response is not None:
+            agent_response_val = response.response
+        elif hasattr(response, "generated_output"):
+            agent_response_val = response.generated_output
+        else:
+            agent_response_val = ""
+        agent_response_str = json.dumps(agent_response_val) if isinstance(agent_response_val, dict) else str(agent_response_val)
+        await db_manager.add_agent_session(
+            session_id=session_id,
+            agent_name=agent_name,
+            user_query=user_input,
+            agent_response=agent_response_str,
+            tool_calls=getattr(response, 'tool_calls', None),
+            execution_time_ms=execution_time_ms,
+            success=True,
+            meta=None
+        )
+        # Add assistant message to database
+        if hasattr(response, "task_report") and callable(response.task_report):
+            md_content = response.task_report()
+        elif hasattr(response, "response") and response.response:
+            md_content = response.response
+        elif hasattr(response, "generated_output") and response.generated_output:
+            md_content = response.generated_output
+        else:
+            md_content = ""
+        
+        if isinstance(md_content, dict):
+            md_content = json.dumps(md_content)
+        else:
+            md_content = str(md_content)
+        await db_manager.add_message(
+            session_id=session_id,
+            role="assistant",
+            content=md_content,
+            agent_name=agent_name,
+            tool_calls=getattr(response, 'tool_calls', None),
+            meta=None
+        )
+        
+        if mode == "regular":
+            md_content = response.response if hasattr(response, "response") else getattr(response, "generated_output", "")
+        else:
+            # For swarm mode, check if tasks were actually generated
+            if hasattr(response, 'response') and response.response:
+                md_content = response.response
+            elif hasattr(response, 'tasks') and response.tasks:
+                md_content = response.task_report()
+            elif hasattr(response, 'report') and response.report:
+                md_content = response.report
+            else:
+                md_content = getattr(response, "generated_output", "No response generated")
 
-            if hasattr(response, 'tool_calls') and response.tool_calls:
-                md_content += "\n\n### Diagnostic Message: Tools Used\n"
-                for tc in response.tool_calls:
-                    md_content += f"- **{tc['name']}**\n"
-                    if 'output' in tc:
-                        output_val = tc['output']
-                        if isinstance(output_val, (dict, list)):
-                            try:
-                                pretty_output = json.dumps(output_val, indent=2)
-                                if len(pretty_output) > 500:
-                                    md_content += "  Output (truncated):\n```json\n" + pretty_output[:500] + "...\n```\n"
-                                else:
-                                    md_content += "  Output:\n```json\n" + pretty_output + "\n```\n"
-                            except:
-                                output_str = str(output_val)
-                                if len(output_str) > 500:
-                                    md_content += f"  Output (truncated): {output_str[:500]}...\n"
-                                else:
-                                    md_content += f"  Output: {output_str}\n"
-                        else:
+        if hasattr(response, 'tool_calls') and response.tool_calls:
+            md_content += "\n\n### Diagnostic Message: Tools Used\n"
+            for tc in response.tool_calls:
+                md_content += f"- **{tc['name']}**\n"
+                if 'output' in tc:
+                    output_val = tc['output']
+                    if isinstance(output_val, (dict, list)):
+                        try:
+                            pretty_output = json.dumps(output_val, indent=2)
+                            if len(pretty_output) > 500:
+                                md_content += "  Output (truncated):\n```json\n" + pretty_output[:500] + "...\n```\n"
+                            else:
+                                md_content += "  Output:\n```json\n" + pretty_output + "\n```\n"
+                        except:
                             output_str = str(output_val)
                             if len(output_str) > 500:
                                 md_content += f"  Output (truncated): {output_str[:500]}...\n"
                             else:
                                 md_content += f"  Output: {output_str}\n"
-                    if 'error' in tc:
-                        error_val = tc['error']
-                        if isinstance(error_val, (dict, list)):
-                            try:
-                                pretty_error = json.dumps(error_val, indent=2)
-                                if len(pretty_error) > 500:
-                                    md_content += "  Error (truncated):\n```json\n" + pretty_error[:500] + "...\n```\n"
-                                else:
-                                    md_content += "  Error:\n```json\n" + pretty_error + "\n```\n"
-                            except:
-                                error_str = str(error_val)
-                                if len(error_str) > 500:
-                                    md_content += f"  Error (truncated): {error_str[:500]}...\n"
-                                else:
-                                    md_content += f"  Error: {error_str}\n"
+                    else:
+                        output_str = str(output_val)
+                        if len(output_str) > 500:
+                            md_content += f"  Output (truncated): {output_str[:500]}...\n"
                         else:
+                            md_content += f"  Output: {output_str}\n"
+                if 'error' in tc:
+                    error_val = tc['error']
+                    if isinstance(error_val, (dict, list)):
+                        try:
+                            pretty_error = json.dumps(error_val, indent=2)
+                            if len(pretty_error) > 500:
+                                md_content += "  Error (truncated):\n```json\n" + pretty_error[:500] + "...\n```\n"
+                            else:
+                                md_content += "  Error:\n```json\n" + pretty_error + "\n```\n"
+                        except:
                             error_str = str(error_val)
                             if len(error_str) > 500:
                                 md_content += f"  Error (truncated): {error_str[:500]}...\n"
                             else:
                                 md_content += f"  Error: {error_str}\n"
-                    md_content += "\n"
-
-            if hasattr(response, 'diagnostics') and response.diagnostics:
-                md_content += "\n\n### Response Diagnostics\n"
-                md_content += f"**Confidence Score:** {response.diagnostics.confidence:.2f}\n\n"
-                md_content += "**Thoughts:**\n"
-                for thought in response.diagnostics.thoughts:
-                    md_content += f"- {thought}\n"
+                    else:
+                        error_str = str(error_val)
+                        if len(error_str) > 500:
+                            md_content += f"  Error (truncated): {error_str[:500]}...\n"
+                        else:
+                            md_content += f"  Error: {error_str}\n"
                 md_content += "\n"
 
-            assistant_panel = Panel(
-                Markdown(md_content),
-                style="blue",
-                title=f"{agent_name} [{datetime.now():%H:%M:%S}]",
-                border_style="blue"
-            )
-            console.print(assistant_panel)
-        except (KeyboardInterrupt, EOFError):
-            console.print(Panel("\n[bold yellow]Goodbye![/bold yellow]", style="yellow"))
-            break
-        except Exception as e:
-            console.print(Panel(f"[bold red]Error:[/bold red] {str(e)}", style="red"))
-            # Log error to database
-            agent_name = "swarm" if mode == "swarm" else agent_instance.name
-            await db_manager.add_agent_session(
-                session_id=session_id,
-                agent_name=agent_name,
-                user_query=user_input if 'user_input' in locals() else "Unknown",
-                success=False,
-                error_message=str(e),
-                meta=None
-            )
+        if hasattr(response, 'diagnostics') and response.diagnostics:
+            md_content += "\n\n### Response Diagnostics\n"
+            md_content += f"**Confidence Score:** {response.diagnostics.confidence:.2f}\n\n"
+            md_content += "**Thoughts:**\n"
+            for thought in response.diagnostics.thoughts:
+                md_content += f"- {thought}\n"
+            md_content += "\n"
+
+        assistant_panel = Panel(
+            Markdown(md_content),
+            style="blue",
+            title=f"{agent_name} [{datetime.now():%H:%M:%S}]",
+            border_style="blue"
+        )
+        console.print(assistant_panel)
+        # except (KeyboardInterrupt, EOFError):
+        #     console.print(Panel("\n[bold yellow]Goodbye![/bold yellow]", style="yellow"))
+        #     break
+        # except Exception as e:
+        #     console.print(Panel(f"[bold red]Error:[/bold red] {str(e)}", style="red"))
+        #     # Log error to database
+        #     agent_name = "swarm" if mode == "swarm" else agent_instance.name
+        #     await db_manager.add_agent_session(
+        #         session_id=session_id,
+        #         agent_name=agent_name,
+        #         user_query=user_input if 'user_input' in locals() else "Unknown",
+        #         success=False,
+        #         error_message=str(e),
+        #         meta=None
+        #     )
     await db_manager.close()
 
 

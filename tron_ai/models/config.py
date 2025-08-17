@@ -1,7 +1,7 @@
 """Configuration models for the tron_ai framework."""
 
 from pydantic import BaseModel
-
+from typing import Optional
 
 class LLMClientConfig(BaseModel):
     """Configuration for LLM clients.
@@ -16,5 +16,45 @@ class LLMClientConfig(BaseModel):
     """
 
     model_name: str = "gpt-4o"
-    json_output: bool = False
     logging: bool = False
+    json_output: bool = False
+    
+    max_tokens: Optional[int] = None
+    
+    def build_model_kwargs(self):
+        return {
+            "model": self.model_name,
+        }
+        
+    @staticmethod
+    def build(**kwargs) -> 'LLMClientConfig':
+        return LLMClientConfig(**kwargs)
+
+
+class BaseChatGPT5Config(LLMClientConfig):
+    model_name: str = "gpt-5"
+    
+    max_tokens: Optional[int] = 128000
+    
+    reasoning_effort: str = "low"
+    text_verbosity: str = "low"
+    
+    def build_model_kwargs(self):
+        return super().build_model_kwargs() | {
+            "max_completion_tokens": self.max_tokens,
+            "reasoning_effort": self.reasoning_effort,
+        }
+        
+    @staticmethod
+    def build_config(**kwargs):
+        return BaseChatGPT5Config(**kwargs)
+        
+
+class ChatGPT5LowConfig(BaseChatGPT5Config):
+    reasoning_effort: str = "low"
+    
+class ChatGPT5MediumConfig(BaseChatGPT5Config):
+    reasoning_effort: str = "medium"
+    
+class ChatGPT5HighConfig(BaseChatGPT5Config):
+    reasoning_effort: str = "high"
