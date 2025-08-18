@@ -11,6 +11,7 @@ from tron_ai.flows._base import BaseFlow
 from pydantic import BaseModel, Field
 from typing import Any, Dict, List
 from tron_ai.executors.completion import CompletionExecutor
+from tron_ai.models.config import ChatGPT5HighConfig
 
 logger = logging.getLogger(__name__)
 
@@ -179,7 +180,7 @@ class WordpressGeneratePostTools:
             output_format=PromptDefaultResponse
         )
         logger.info("🤖 Creating completion executor for content generation...")
-        executor = CompletionExecutor(config=ExecutorConfig(client=get_llm_client(), prompt=prompt))
+        executor = CompletionExecutor(config=ExecutorConfig(client=get_llm_client_from_config(ChatGPT5HighConfig()), prompt=prompt))
         logger.info("📡 Executing content generation prompt...")
         request = await executor.execute(
             f"""
