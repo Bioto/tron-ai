@@ -175,12 +175,20 @@ class WordpressGeneratePostTools:
         
         prompt = Prompt(
             text="""
-            You are a professional content writer, specializing in taking a simple idea, a title, and a concept and generating a blog post. Return only the blog post content, nothing else. The content should be in HTML format. Do NOT include the title in the content - the title will be handled separately. Use the provided research as reference material.
+            You are a professional content writer, specializing in taking a simple idea, a title, and a concept and generating a blog post. Return only the blog post content, nothing else. The content should be in Markdown format (not HTML). Do NOT include the title in the content - the title will be handled separately. Use the provided research as reference material. Do not include any images in the content.
+            
+            Use Markdown formatting:
+            - **Bold** for emphasis
+            - *Italic* for subtle emphasis
+            - # Headers for sections
+            - - Bullet points for lists
+            - [Link text](URL) for links
+            - ![Alt text](image_url) for images
             """,
             output_format=PromptDefaultResponse
         )
         logger.info("🤖 Creating completion executor for content generation...")
-        executor = CompletionExecutor(config=ExecutorConfig(client=get_llm_client_from_config(ChatGPT5HighConfig()), prompt=prompt))
+        executor = CompletionExecutor(config=ExecutorConfig(client=get_llm_client_from_config(ChatGPT5HighConfig(reasoning_effort="low", text_verbosity="low")), prompt=prompt))
         logger.info("📡 Executing content generation prompt...")
         request = await executor.execute(
             f"""
@@ -259,7 +267,7 @@ class WordpressGeneratePostTools:
             'orientation': 'landscape'  # Good for blog banners
         }
         
-        logger.info(f"🌐 Making Pexels API request...")
+        logger.info("🌐 Making Pexels API request...")
         logger.debug(f"   URL: {url}")
         logger.debug(f"   Headers: {headers}")
         logger.debug(f"   Params: {params}")
@@ -299,7 +307,7 @@ class WordpressGeneratePostTools:
                         'search_query': search_query
                     }
                     state.banner_image = banner_data
-                    logger.info(f"✅ Banner image selected successfully")
+                    logger.info("✅ Banner image selected successfully")
                     logger.info(f"🖼️ Image: {photo.get('alt', 'No alt')} by {photo.get('photographer', 'Unknown')}")
                     
                 except KeyError as e:
@@ -309,7 +317,7 @@ class WordpressGeneratePostTools:
                     logger.error(f"❌ Error processing photo: {str(e)}")
                     state.banner_image = {"error": f"Error processing photo: {str(e)}"}
             else:
-                logger.warning(f"❌ No photos found in Pexels response")
+                logger.warning("❌ No photos found in Pexels response")
                 state.banner_image = {"error": "No photos found in Pexels API response"}
         
         except requests.exceptions.RequestException as e:
@@ -396,29 +404,30 @@ class WordpressGeneratePostTools:
         photographer = state.banner_image.get('photographer', 'Unknown')
         photographer_url = state.banner_image.get('photographer_url', '#')
         
-        logger.info(f"📋 Image details:")
+        logger.info("📋 Image details:")
         logger.debug(f"   - Alt text: {alt_text}")
         logger.debug(f"   - Photographer: {photographer}")
         logger.debug(f"   - Photographer URL: {photographer_url}")
         
-        # Create HTML image tag with attribution
-        logger.info("🏗️ Creating HTML image tag...")
-        image_html = f'''<div style="text-align: center; margin: 20px 0;">
-    <img src="{image_url}" alt="{alt_text}" style="width: 100%; max-width: 100%; height: auto; border-radius: 8px;" />
-    <p style="font-size: 12px; color: #666; margin-top: 8px;">
-        Photo by <a href="{photographer_url}" target="_blank" rel="noopener">{photographer}</a> on Pexels
-    </p>
-</div>'''
+        # Create Markdown image with attribution
+        logger.info("🏗️ Creating Markdown image...")
+        image_markdown = f'''![{alt_text}]({image_url})
+
+*Photo by [{photographer}]({photographer_url}) on Pexels*
+
+---
+
+'''
         
-        logger.info(f"✅ HTML image tag created: {len(image_html)} characters")
+        logger.info(f"✅ Markdown image tag created: {len(image_markdown)} characters")
         
         # Combine banner image with content
         logger.info("📝 Combining banner image with content...")
-        finalized_content = image_html + '\n\n' + state.content
+        finalized_content = image_markdown + '\n\n' + state.content
         
         state.finalized_content = finalized_content
         
-        logger.info(f"✅ Content finalized successfully")
+        logger.info("✅ Content finalized successfully")
         logger.debug(f"📊 Original content length: {len(state.content)} characters")
         logger.debug(f"📊 Finalized content length: {len(finalized_content)} characters")
         logger.debug(f"📊 Content change: +{len(finalized_content) - len(state.content)} characters")
