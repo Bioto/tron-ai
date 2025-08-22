@@ -88,7 +88,7 @@ class AppiumClient:
             options.full_reset = False
 
         # Additional options for better stability
-        options.set_capability("newCommandTimeout", 300)
+        options.set_capability("newCommandTimeout", 3600)
         options.set_capability("deviceReadyTimeout", 30000)
 
         return options
@@ -171,7 +171,12 @@ class AppiumClient:
         wait = WebDriverWait(self.driver, timeout)
 
         try:
-            by_strategy = getattr(By, locator_strategy.upper())
+            # Normalize locator strategy to handle variations like 'RESOURCE-ID', 'BY_ID', etc.
+            normalized_strategy = locator_strategy.upper().replace("BY_", "").replace("BY.", "")
+            if normalized_strategy == 'RESOURCE-ID':
+                normalized_strategy = 'ID'
+
+            by_strategy = getattr(By, normalized_strategy)
             element = wait.until(EC.presence_of_element_located((by_strategy, locator_value)))
             return element
         except (TimeoutException, NoSuchElementException) as e:
@@ -197,7 +202,12 @@ class AppiumClient:
             raise RuntimeError("Appium driver not connected")
 
         try:
-            by_strategy = getattr(By, locator_strategy.upper())
+            # Normalize locator strategy to handle variations like 'RESOURCE-ID', 'BY_ID', etc.
+            normalized_strategy = locator_strategy.upper().replace("BY_", "").replace("BY.", "")
+            if normalized_strategy == 'RESOURCE-ID':
+                normalized_strategy = 'ID'
+
+            by_strategy = getattr(By, normalized_strategy)
             return self.driver.find_element(by_strategy, locator_value)
         except NoSuchElementException:
             return None

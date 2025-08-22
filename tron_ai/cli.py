@@ -119,7 +119,7 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
     
-    client = get_llm_client_from_config(BaseGroqConfig(model_name="qwen/qwen3-32b"), client_name="groq")
+    client = get_llm_client_from_config(BaseGroqConfig(model_name="deepseek-r1-distill-llama-70b"), client_name="groq")
     
     # Check if an MCP agent was requested
     if mcp_agent:
