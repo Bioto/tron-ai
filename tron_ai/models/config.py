@@ -31,6 +31,16 @@ class LLMClientConfig(BaseModel):
         return LLMClientConfig(**kwargs)
 
 
+class BaseGroqConfig(LLMClientConfig):
+    model_name: str = "openai/gpt-oss-120b"
+    
+    max_tokens: Optional[int] = 128000
+    
+    def build_model_kwargs(self):
+        base_kwargs = super().build_model_kwargs()
+        return base_kwargs
+    
+
 class BaseChatGPT5Config(LLMClientConfig):
     model_name: str = "gpt-5"
     
@@ -40,10 +50,7 @@ class BaseChatGPT5Config(LLMClientConfig):
     text_verbosity: str = "low"
     
     def build_model_kwargs(self):
-        return super().build_model_kwargs() | {
-            "max_completion_tokens": self.max_tokens,
-            "reasoning_effort": self.reasoning_effort,
-        }
+        return super().build_model_kwargs()
         
     @staticmethod
     def build_config(**kwargs):

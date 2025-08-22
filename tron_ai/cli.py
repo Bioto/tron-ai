@@ -17,7 +17,7 @@ from tron_ai.config import setup_logging
 
 from dotenv import load_dotenv
 
-from tron_ai.models.config import ChatGPT5LowConfig, ChatGPT5MediumConfig, ChatGPT5HighConfig, LLMClientConfig
+from tron_ai.models.config import ChatGPT5LowConfig, ChatGPT5MediumConfig, ChatGPT5HighConfig, LLMClientConfig, BaseGroqConfig  
 from tron_ai.utils.llm.LLMClient import get_llm_client_from_config
 
 load_dotenv()
@@ -36,7 +36,7 @@ async def cli():
 
 @cli.command()
 @click.argument("user_query", required=False)
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "android"]))
 async def ask(user_query: str, agent: str) -> str:
     """Ask Tron AI a question"""
     
@@ -95,7 +95,7 @@ async def ask(user_query: str, agent: str) -> str:
 
 @cli.command()
 @click.argument("user_query", required=False)
-@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "ssh", "todoist", "notion", "wordpress", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
+@click.option("--agent", default="generic", type=click.Choice(["generic", "tron", "google", "android", "ssh", "todoist", "notion", "wordpress", "marketing_strategy", "sales", "customer_success", "product_management", "financial_planning", "ai_ethics", "content_creation", "community_relations"]))
 @click.option("--mcp-agent", default=None, help="Use a specific MCP agent by server name (e.g., 'mcp-server-docker')")
 @click.option("--mode", default="regular", type=click.Choice(["regular", "swarm"]), help="Execution mode")
 async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: str = "regular"):
@@ -119,7 +119,7 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     await db_manager.initialize()
     session_id = str(uuid.uuid4())
     
-    client = get_llm_client_from_config(ChatGPT5HighConfig(reasoning_effort="low"))
+    client = get_llm_client_from_config(BaseGroqConfig(model_name="qwen/qwen3-32b"), client_name="groq")
     
     # Check if an MCP agent was requested
     if mcp_agent:
@@ -140,6 +140,9 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
     elif agent == "google":
         from tron_ai.agents.productivity.google.agent import GoogleAgent
         agent_instance = GoogleAgent()
+    elif agent == "android":
+        from tron_ai.agents.productivity.android.agent import AndroidAgent
+        agent_instance = AndroidAgent()
     elif agent == "ssh":
         from tron_ai.agents.devops.ssh.agent import SSHAgent
         agent_instance = SSHAgent()
@@ -187,7 +190,14 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
         console.print("[green]✓[/green] Added Google Agent")
     except Exception as e:
         console.print(f"[yellow]⚠[/yellow] Google Agent unavailable: {str(e)}")
-        
+
+    try:
+        from tron_ai.agents.productivity.android.agent import AndroidAgent
+        all_agents.append(AndroidAgent())
+        console.print("[green]✓[/green] Added Android Agent")
+    except Exception as e:
+        console.print(f"[yellow]⚠[/yellow] Android Agent unavailable: {str(e)}")
+
     try:
         from tron_ai.agents.productivity.todoist.agent import TodoistAgent
         all_agents.append(TodoistAgent())
@@ -905,10 +915,10 @@ async def start_a2a_server(host: str, port: int, include_mcp: bool):
     from tron_ai.executors.agent import AgentExecutor
     from tron_ai.models.agent import Agent
     from tron_ai.executors.base import ExecutorConfig
-    from tron_ai.utils.llm.LLMClient import get_llm_client
     from tron_ai.modules.a2a.executor import TronA2AExecutor
     from rich.panel import Panel
-    
+    from tron_ai.models.config import LLMClientConfig
+    from tron_ai.utils.llm.LLMClient import get_llm_client
     console = Console()
     
     console.print(Panel(
@@ -936,7 +946,14 @@ async def start_a2a_server(host: str, port: int, include_mcp: bool):
             console.print("[green]✓[/green] Added Google Agent")
         except Exception as e:
             console.print(f"[yellow]⚠[/yellow] Google Agent unavailable: {str(e)}")
-        
+
+        try:
+            from tron_ai.agents.productivity.android.agent import AndroidAgent
+            agents.append(AndroidAgent())
+            console.print("[green]✓[/green] Added Android Agent")
+        except Exception as e:
+            console.print(f"[yellow]⚠[/yellow] Android Agent unavailable: {str(e)}")
+
         try:
             from tron_ai.agents.productivity.todoist.agent import TodoistAgent
             agents.append(TodoistAgent())
@@ -1015,7 +1032,7 @@ Remember: Use the `response` field for direct answers and `tasks` only when agen
          )
         
         # Create executor configuration
-        config = ExecutorConfig(client=get_llm_client(json_output=True), logging=True)
+        config = ExecutorConfig(client=get_llm_client_from_config(ChatGPT5LowConfig()), logging=True)
         
         # Create agent executor with all agents
         executor = AgentExecutor(

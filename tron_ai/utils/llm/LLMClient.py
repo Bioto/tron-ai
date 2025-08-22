@@ -5,6 +5,15 @@ import pprint
 from datetime import datetime, timedelta
 import ast
 
+# Third-party imports
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log,
+)
+
 # Import Component at module level since it's needed for inheritance
 from adalflow import Component
 
@@ -260,11 +269,25 @@ class LLMClient(Component):
         generator = self._build_generator()
         format_str = self._generate_format_string(system_prompt.output_format)
         
-        results = generator(
-            prompt_kwargs=self._build_prompt_kwargs(
-                system_prompt, user_query, format_str, prompt_kwargs
-            )
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=4, max=10),
+            retry=retry_if_exception_type((Exception,)),
+            before_sleep=before_sleep_log(logger, logging.WARNING),
+            reraise=True
         )
+        def _make_simple_llm_call():
+            return generator(
+                prompt_kwargs=self._build_prompt_kwargs(
+                    system_prompt, user_query, format_str, prompt_kwargs
+                )
+            )
+        
+        try:
+            results = _make_simple_llm_call()
+        except Exception as e:
+            logger.error(f"Simple LLM call failed after retries: {e}")
+            raise
 
         response = self._process_llm_response(results, system_prompt.output_format)
         response = self._ensure_tool_calls_field(response)
@@ -411,6 +434,11 @@ class LLMClient(Component):
 
         for i, tool_call in enumerate(tool_calls):
             # Normalize tool_call to ensure kwargs are properly separated
+            if tool_call is None:
+                continue
+            if isinstance(tool_call, str):
+                print('tool_call is str', tool_call)
+                tool_call = json.loads(tool_call)
             normalized_tool_call = tool_call.copy()
             
             # If args contains a dict, move it to kwargs
@@ -510,6 +538,13 @@ class LLMClient(Component):
             'tool_calls' in obj.__class__.model_fields
         )
 
+    @retry(
+        stop=stop_after_attempt(3),
+        wait=wait_exponential(multiplier=1, min=4, max=10),
+        retry=retry_if_exception_type((Exception,)),
+        before_sleep=before_sleep_log(logger, logging.WARNING),
+        reraise=True
+    )
     def _execute_with_tools(
         self,
         generator,
@@ -572,15 +607,29 @@ class LLMClient(Component):
                 user_query, all_tool_call_results, previous_tool_calls
             )
             
-            # Make LLM call
+            # Make LLM call with retry logic
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
 
-            results = generator(
-                prompt_kwargs=self._build_prompt_kwargs(
-                    system_prompt, formatted_query, tool_prompt_kwargs["_output_format_str"]
-                ) | tool_prompt_kwargs | prompt_kwargs
+            @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=4, max=10),
+                retry=retry_if_exception_type((Exception,)),
+                before_sleep=before_sleep_log(logger, logging.WARNING),
+                reraise=True
             )
+            def _make_llm_call():
+                return generator(
+                    prompt_kwargs=self._build_prompt_kwargs(
+                        system_prompt, formatted_query, tool_prompt_kwargs["_output_format_str"]
+                    ) | tool_prompt_kwargs | prompt_kwargs
+                )
             
+            try:
+                results = _make_llm_call()
+            except Exception as e:
+                logger.error(f"[LLM_ITERATION] LLM call failed after retries: {e}")
+                raise
+            print('results', results)
             if isinstance(results.data, str):
                 try:
                     dataset = extract_json_from_string(results.data)
@@ -592,6 +641,9 @@ class LLMClient(Component):
                     )
             else:
                 dataset = results.data
+                
+            print('=== dataset ===')
+            print('dataset', dataset    )
                 
             if isinstance(dataset, list):
                 if len(dataset) == 1:
@@ -761,11 +813,25 @@ Note: Some tool calls failed due to parameter errors. Please provide the best re
 
         format_str = self._generate_example_format_string(system_prompt.output_format)
         
-        results = generator(
-            prompt_kwargs=self._build_prompt_kwargs(
-                system_prompt, formatted_query, format_str
-            )
+        @retry(
+            stop=stop_after_attempt(3),
+            wait=wait_exponential(multiplier=1, min=4, max=10),
+            retry=retry_if_exception_type((Exception,)),
+            before_sleep=before_sleep_log(logger, logging.WARNING),
+            reraise=True
         )
+        def _make_direct_llm_call():
+            return generator(
+                prompt_kwargs=self._build_prompt_kwargs(
+                    system_prompt, formatted_query, format_str
+                )
+            )
+        
+        try:
+            results = _make_direct_llm_call()
+        except Exception as e:
+            logger.error(f"Direct LLM call failed after retries: {e}")
+            raise
         
         response = self._process_llm_response(results, system_prompt.output_format)
         self._log("Successfully processed response")
@@ -841,11 +907,15 @@ def get_llm_client(
 
     return LLMClient(client=client, config=config)
 
-def get_llm_client_from_config(config: LLMClientConfig, client: Optional['ModelClient'] = None) -> "LLMClient":
+def get_llm_client_from_config(config: LLMClientConfig, client: Optional['ModelClient'] = None, client_name: str = "openai") -> "LLMClient":
     # Lazy import OpenAIClient only when needed
     if client is None:
         from adalflow import OpenAIClient
-        client = OpenAIClient()
+        from adalflow import GroqAPIClient
+        if client_name == "groq":
+            client = GroqAPIClient()
+        else:
+            client = OpenAIClient()
         
     """Get an LLMClient instance from a config."""
     return LLMClient(client=client, config=config)
@@ -861,8 +931,5 @@ def extract_json_from_string(s: str) -> dict:
         elif s[j] == '}':
             level -= 1
             if level == 0:
-                try:
-                    return json.loads(s[pos:j+1])
-                except json.JSONDecodeError:
-                    pass
+                return json.loads(s[pos:j+1])
     raise ValueError("No valid JSON object found")
