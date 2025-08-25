@@ -410,11 +410,17 @@ async def chat(agent: str, mcp_agent: str, user_query: str | None = None, mode: 
             if hasattr(response, 'response') and response.response:
                 md_content = response.response
             elif hasattr(response, 'tasks') and response.tasks:
-                md_content = response.task_report()
+                md_content = response.task_report() or "No task report available"
             elif hasattr(response, 'report') and response.report:
                 md_content = response.report
             else:
                 md_content = getattr(response, "generated_output", "No response generated")
+        
+        # Ensure md_content is always a string
+        if md_content is None:
+            md_content = "No content available"
+        else:
+            md_content = str(md_content)
 
         if hasattr(response, 'tool_calls') and response.tool_calls:
             md_content += "\n\n### Diagnostic Message: Tools Used\n"

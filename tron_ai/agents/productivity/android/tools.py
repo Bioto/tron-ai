@@ -709,14 +709,107 @@ class AndroidTools:
         return AndroidTools._execute_with_screen_analysis(_swipe_action)
 
     @staticmethod
-    def get_page_source() -> Dict[str, Any]:
-        """Get the page source of the current screen."""
-        client = AndroidTools._get_shared_client()
-        return {
-            "success": True,
-            "page_source": client.driver.page_source
-        }
-        
+    def get_page_source(goal: str = None) -> Dict[str, Any]:
+        """Get the page source of the current screen and analyze the screenshot using OpenAI vision API.
+        If goal is provided, the goal will be used to analyze the screenshot.
+        """
+        try:
+            client = AndroidTools._get_shared_client()
+            
+            # Get page source
+            page_source = client.driver.page_source
+            
+            # Take screenshot
+            screenshot_data = client.driver.get_screenshot_as_png()
+            
+            # Convert screenshot to base64 for OpenAI API
+            screenshot_base64 = base64.b64encode(screenshot_data).decode('utf-8')
+            
+            # Send to OpenAI vision API for analysis
+            vision_analysis = AndroidTools._analyze_screenshot_with_openai(screenshot_base64)
+            
+            print("=== vision_analysis ===")
+            print(vision_analysis)
+            return {
+                "success": True,
+                "page_source": page_source,
+                "screenshot_analysis": vision_analysis,
+                "message": "Page source captured and screenshot analyzed successfully"
+            }
+        except Exception as e:
+            return {
+                "success": False,
+                "message": f"Error getting page source and analyzing screenshot: {str(e)}",
+                "page_source": None,
+                "screenshot_analysis": None
+            }
+    
+    @staticmethod
+    def _analyze_screenshot_with_openai(screenshot_base64: str, goal: str = None) -> Dict[str, Any]:
+        """Analyze the screenshot using OpenAI's vision API to describe what's visible on the screen."""
+        try:
+            import os
+            from openai import OpenAI
+            
+            # Get OpenAI API key from environment
+            api_key = os.getenv('OPENAI_API_KEY')
+            if not api_key:
+                return {
+                    "success": False,
+                    "error": "OPENAI_API_KEY not set in environment",
+                    "description": None
+                }
+            
+            # Initialize OpenAI client
+            client = OpenAI(api_key=api_key)
+            
+            # Prepare the vision analysis request
+            response = client.chat.completions.create(
+                model="gpt-4o",
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a helpful assistant that analyzes screenshots of Android mobile apps and describes what's visible on the screen."
+                    },
+                    {
+                        "role": "user",
+                        "content": [
+                            {
+                                "type": "text",
+                                "text": f"This is a screenshot from an Android mobile app. Please describe in detail what you see on the screen, including: 1) The app name/interface elements, 2) Any text, buttons, or interactive elements visible, 3) The current state or context of the app, 4) Any important information or content displayed. Be specific and descriptive about what a user would see and interact with.{' Goal: ' + goal if goal else ''} If there are any buttons or interactive elements that would help achieve the goal, please identify them with their text and approximate x,y coordinates (with 0,0 being the top-left corner of the device)."
+                            },
+                            {
+                                "type": "image_url",
+                                "image_url": {
+                                    "url": f"data:image/png;base64,{screenshot_base64}",
+                                    "detail": "high"
+                                }
+                            }
+                        ]
+                    }
+                ],
+                max_tokens=500,
+                temperature=0.1
+            )
+            
+            # Extract the analysis description
+            description = response.choices[0].message.content
+            
+            return {
+                "success": True,
+                "description": description,
+                "model_used": "gpt-4o",
+                "tokens_used": response.usage.total_tokens if response.usage else None,
+                "message": "Screenshot analyzed successfully using OpenAI vision API"
+            }
+            
+        except Exception as e:
+            return {
+                "success": False,
+                "error": f"Error analyzing screenshot with OpenAI: {str(e)}",
+                "description": None
+            }
+
     @staticmethod
     def refresh_and_analyze_page_source() -> Dict[str, Any]:
         """
@@ -1000,9 +1093,6 @@ class AndroidTools:
                 }
         
         return AndroidTools._execute_with_screen_analysis(_click_id_action)
-
-    @staticmethod
-    def wait_for_loading_completion(timeout: int = 30, check_interval: float = 0.5) -> Dict[str, Any]:
         """
         Wait for loading states to complete by monitoring the page source.
         This is useful for handling intermediate actions that involve loading states.

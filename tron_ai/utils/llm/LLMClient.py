@@ -629,7 +629,7 @@ class LLMClient(Component):
             except Exception as e:
                 logger.error(f"[LLM_ITERATION] LLM call failed after retries: {e}")
                 raise
-            print('results', results)
+            
             if isinstance(results.data, str):
                 try:
                     dataset = extract_json_from_string(results.data)
@@ -643,7 +643,7 @@ class LLMClient(Component):
                 dataset = results.data
                 
             print('=== dataset ===')
-            print('dataset', dataset    )
+            print(dataset)
                 
             if isinstance(dataset, list):
                 if len(dataset) == 1:
