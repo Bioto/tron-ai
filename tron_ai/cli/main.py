@@ -41,29 +41,28 @@ def _safe_import_commands():
         logging.error(f"Failed to import database commands: {e}")
     
     try:
-        from tron_ai.cli.commands.repo import scan_repo, scan_repo_watch
-        commands['scan_repo'] = scan_repo
-        commands['scan_repo_watch'] = scan_repo_watch
+        from tron_ai.cli.commands.scan import scan
+        commands['scan'] = scan
     except Exception as e:
-        logging.error(f"Failed to import repo commands: {e}")
+        logging.error(f"Failed to import scan command group: {e}")
     
     try:
         from tron_ai.cli.commands.server import (
             list_mcp_agents,
-            start_a2a_server,
-            status,
-            test_a2a_interactive,
-            test_a2a_server
+            status
         )
         commands.update({
             'list_mcp_agents': list_mcp_agents,
-            'start_a2a_server': start_a2a_server,
             'status': status,
-            'test_a2a_interactive': test_a2a_interactive,
-            'test_a2a_server': test_a2a_server,
         })
     except Exception as e:
         logging.error(f"Failed to import server commands: {e}")
+    
+    try:
+        from tron_ai.cli.commands.a2a import a2a
+        commands['a2a'] = a2a
+    except Exception as e:
+        logging.error(f"Failed to import A2A command group: {e}")
     
     return commands
 
@@ -98,15 +97,19 @@ async def cli(ctx: click.Context, version: bool):
     
     \b
     Repository Commands:
-      scan-repo       Scan a repository for dependencies
-      scan-repo-watch Monitor repository changes
+      scan repo          Scan a repository for dependencies
+      scan watch         Monitor repository changes
     
     \b
     Server Commands:
       status              Check Docker service status
-      start-a2a-server    Start the A2A server
-      test-a2a-server     Test A2A server connectivity
       list-mcp-agents     List MCP agents
+    
+    \b
+    A2A Commands:
+      a2a start          Start the A2A server
+      a2a test           Test A2A server connectivity
+      a2a interactive    Interactive A2A testing
     
     \b
     Database Commands:

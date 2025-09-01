@@ -24,18 +24,24 @@ from tron_ai.cli.base import (
 )
 
 
+@click.group(name='scan', help='Repository scanning and dependency analysis.')
+async def scan():
+    """Repository scanning and dependency analysis commands."""
+    pass
+
+
 class RepoScanError(CLIError):
     """Raised when repository scanning fails."""
     pass
 
 
-@click.command(name='scan-repo')
+@scan.command(name='repo', help='Scan a repository to analyze code dependencies and structure.')
 @click.argument('directory')
 @click.option('--output', default=None, help='Output JSON file path for the graph.')
 @click.option('--store-neo4j', is_flag=True, help='Store the graph in Neo4j.')
 @with_error_handling
 async def scan_repo(directory: str, output: Optional[str], store_neo4j: bool):
-    """Scan a repository to analyze code dependencies and structure."""
+    """Scan a local repository using CodeScannerAgent."""
     console = Console()
     setup_cli_logging()
     
@@ -85,13 +91,13 @@ async def scan_repo(directory: str, output: Optional[str], store_neo4j: bool):
         raise RepoScanError(f"Failed to scan repository: {e}") from e
 
 
-@click.command(name='scan-repo-watch')
+@scan.command(name='watch', help='Monitor a repository and scan for changes periodically.')
 @click.argument('directory')
 @click.option('--interval', default=300, help='Scan interval in seconds (default: 5 min).')
 @click.option('--store-neo4j', is_flag=True, help='Store updates in Neo4j.')
 @with_error_handling
 async def scan_repo_watch(directory: str, interval: int, store_neo4j: bool):
-    """Monitor a repository and scan for changes periodically."""
+    """Watch and periodically scan a repository for updates."""
     console = Console()
     setup_cli_logging()
     
