@@ -58,6 +58,7 @@ dependencies = [
 
 [project.scripts]
 tron = "tron_ai.cli:main"
+tron-ai = "tron_ai.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]
