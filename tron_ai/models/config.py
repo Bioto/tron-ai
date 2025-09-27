@@ -65,3 +65,14 @@ class ChatGPT5MediumConfig(BaseChatGPT5Config):
     
 class ChatGPT5HighConfig(BaseChatGPT5Config):
     reasoning_effort: str = "high"
+    
+    
+    
+class BaseXAICofig(LLMClientConfig):
+    model_name: str = "grok-4-fast-reasoning-latest"
+    streaming: bool = False
+    
+    def build_model_kwargs(self):
+        return super().build_model_kwargs()
+    
+    

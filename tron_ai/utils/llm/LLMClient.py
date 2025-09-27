@@ -609,7 +609,9 @@ class LLMClient(Component):
             
             # Make LLM call with retry logic
             logger.info(f"[LLM_ITERATION] Making LLM call with {len(all_tool_call_results)} previous tool results")
-
+            logger.debug(f"[LLM_ITERATION] Formatted query: {formatted_query}")
+        
+            
             @retry(
                 stop=stop_after_attempt(3),
                 wait=wait_exponential(multiplier=1, min=4, max=10),
@@ -642,8 +644,7 @@ class LLMClient(Component):
             else:
                 dataset = results.data
                 
-            print('=== dataset ===')
-            print(dataset)
+            logger.debug(f"[LLM_ITERATION] Dataset: {dataset}")
                 
             if isinstance(dataset, list):
                 if len(dataset) == 1:
@@ -912,8 +913,12 @@ def get_llm_client_from_config(config: LLMClientConfig, client: Optional['ModelC
     if client is None:
         from adalflow import OpenAIClient
         from adalflow import GroqAPIClient
+        from adalflow.components.model_client.xai_client import XAIClient
+        
         if client_name == "groq":
             client = GroqAPIClient()
+        elif client_name == "xai":
+            client = XAIClient()
         else:
             client = OpenAIClient()
         

@@ -77,13 +77,31 @@ async def ask(user_query: Optional[str], agent: str) -> None:
             agent_factory = get_agent_factory(console)
             agent_instance = agent_factory.create_agent(agent)
             
+            # For TronAgent, populate memory_context
+            prompt_kwargs = {}
+            if agent_instance.name == "Tron":
+                from tron_ai.agents.tron.tools import TronTools
+                import json
+                memories_json = TronTools.query_memory(query=validated_query)
+                try:
+                    memories = json.loads(memories_json)
+                    memory_str = "## Relevant Memories\n\n"
+                    if "results" in memories and memories["results"]:
+                        for mem in memories["results"]:
+                            memory_str += f"- {mem['memory']} (confidence: {mem.get('similarity', 0):.2f})\n\n"
+                    else:
+                        memory_str += "No relevant memories found yet. Our conversation history will help build this over time.\n"
+                    prompt_kwargs = {"memory_context": memory_str}
+                except json.JSONDecodeError:
+                    prompt_kwargs = {"memory_context": "Memory query failed. Using conversation context."}
+            
             executor = AgentExecutor(
                 config=ExecutorConfig(
                     client=client,
                     logging=True,
                 ),
             )
-            response = await executor.execute(user_query=validated_query, agent=agent_instance)
+            response = await executor.execute(user_query=validated_query, agent=agent_instance, prompt_kwargs=prompt_kwargs)
         
         # Display response
         if hasattr(response, 'response') and response.response:

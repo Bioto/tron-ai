@@ -83,7 +83,6 @@ class AgentSelector:
             You are given a list of agents and a list of tasks.
             You need to select the most appropriate agent for each task.
             You need to select the most appropriate agent for the user query.
-            You need to select the most appropriate agent for the user query.
             
             Agents:
             {{agents}}

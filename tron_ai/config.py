@@ -130,6 +130,21 @@ LOGGING_CONFIG = {
             "level": DEFAULT_THIRD_PARTY_LEVEL,
             "propagate": False,
         },
+        "chromadb": {
+            "handlers": ["rich"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "langchain": {
+            "handlers": ["rich"],
+            "level": "ERROR",
+            "propagate": False,
+        },
+        "langchain.agents": {
+            "handlers": ["rich"],
+            "level": "ERROR",
+            "propagate": False,
+        },
         "asyncio": {
             "handlers": ["simple"],
             "level": "CRITICAL",

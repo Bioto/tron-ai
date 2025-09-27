@@ -93,41 +93,63 @@ class StateGraph(Generic[T]):
         """
         self.exit_nodes.add(name)
 
-    async def run(self, initial_state: T) -> T:
+    async def run(self, initial_state: T, timeout: float = 30.0, max_cycles: int = 100) -> T:
         """Execute the graph starting from the entrypoint.
-        
+
         Args:
             initial_state: Initial state to process
-            
+            timeout: Timeout in seconds for each node execution
+            max_cycles: Maximum number of node executions to prevent infinite loops
+
         Returns:
             Final state after execution completes
-            
+
         Raises:
             ValueError: If entrypoint is not set
             RuntimeError: If no valid transition is found
+            asyncio.TimeoutError: If a node execution times out
+            RecursionError: If cycle detection limit is exceeded
         """
         if not self.entrypoint:
             raise ValueError("Entrypoint not set")
-            
+
         current_node = self.entrypoint
         state = initial_state
-        
+        visited_nodes = set()
+        execution_count = 0
+
         while current_node not in self.exit_nodes:
+            # Cycle detection
+            if current_node in visited_nodes:
+                raise RecursionError(f"Cycle detected at node {current_node}. Visited nodes: {visited_nodes}")
+            visited_nodes.add(current_node)
+
+            # Execution limit check
+            execution_count += 1
+            if execution_count > max_cycles:
+                raise RecursionError(f"Maximum execution cycles ({max_cycles}) exceeded. Possible infinite loop.")
+
             node_fn = self.nodes[current_node]
-            self.logger.info(f"Executing node: {current_node}")
-            state = await node_fn(state)
-            
+            self.logger.info(f"Executing node: {current_node} (cycle {execution_count})")
+
+            # Execute with timeout
+            try:
+                state = await asyncio.wait_for(node_fn(state), timeout=timeout)
+            except asyncio.TimeoutError as e:
+                self.logger.error(f"Node {current_node} timed out after {timeout}s")
+                raise asyncio.TimeoutError(f"Node execution timeout: {current_node}") from e
+
             # Determine next node
             outgoing = self.edges.get(current_node, {})
             if not outgoing:
                 raise RuntimeError(f"No outgoing edges from node {current_node}")
-                
+
             if len(outgoing) == 1:
                 # Only one possible next node
                 next_node = next(iter(outgoing))
                 current_node = next_node
                 continue
-                
+
             # Multiple possible next nodes, check conditions
             found = False
             for next_node, condition in outgoing.items():
@@ -135,14 +157,20 @@ class StateGraph(Generic[T]):
                     current_node = next_node
                     found = True
                     break
-                    
+
             if not found:
                 raise RuntimeError(f"No valid transition from {current_node} for state {state}")
-                
-        self.logger.info(f"Exiting at node: {current_node}")
+
+        self.logger.info(f"Exiting at node: {current_node} after {execution_count} executions")
+
+        # Execute exit node if it's a processing node
         if current_node in self.nodes:
-            state = await self.nodes[current_node](state)
-            
+            try:
+                state = await asyncio.wait_for(self.nodes[current_node](state), timeout=timeout)
+            except asyncio.TimeoutError as e:
+                self.logger.error(f"Exit node {current_node} timed out after {timeout}s")
+                raise asyncio.TimeoutError(f"Exit node execution timeout: {current_node}") from e
+
         return state
 
 # Example usage
@@ -169,7 +197,7 @@ async def main() -> None:
     graph.add_edge("increment", "check")
     graph.add_edge("check", "increment", lambda s: s.value < 3)
     graph.add_edge("check", "end", lambda s: s.value >= 3)
-    final_state = await graph.run(MyState())
+    final_state = await graph.run(MyState(), timeout=10.0, max_cycles=5)
     
 if __name__ == "__main__":
     asyncio.run(main())

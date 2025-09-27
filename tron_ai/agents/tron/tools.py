@@ -30,7 +30,7 @@ class TronTools:
         similarity search to identify the most relevant stored memories.
         
         Args:
-            query (str): The search query to find relevant memories
+            query (str): The search query to find relevant memories (e.g., "what is the user's name")
             
         Returns:
             str: A JSON-formatted string containing search results with the following structure:

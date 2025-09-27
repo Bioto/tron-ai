@@ -71,17 +71,21 @@ class SwarmExecutor(Executor):
             implementation for each step in the delegation process.
     """
 
-    def __init__(self, state: SwarmState, *args, **kwargs):
-        """Initializes the DelegateExecutor.
+    def __init__(self, state: SwarmState, timeout: float = 60.0, max_cycles: int = 50, *args, **kwargs):
+        """Initializes the SwarmExecutor.
 
         Args:
             agents: A list of `Agent` instances available for task delegation.
             state: The initial state model for the workflow.
+            timeout: Timeout in seconds for each node execution in the swarm graph.
+            max_cycles: Maximum number of node executions to prevent infinite loops.
             *args: Variable length argument list.
             **kwargs: Arbitrary keyword arguments passed to the base executor.
         """
         super().__init__(*args, **kwargs)
         self.state: SwarmState = state
+        self.timeout: float = timeout
+        self.max_cycles: int = max_cycles
         self.tools: SwarmTools = SwarmTools(client=self.client)
 
     async def execute(self, user_query: str) -> SwarmState:
@@ -107,7 +111,7 @@ class SwarmExecutor(Executor):
             async def wrapper(s, func=func, name=name):
                 return await func(s)
             graph.nodes[name] = wrapper
-        result = await graph.run(initial_state=state)
+        result = await graph.run(initial_state=state, timeout=self.timeout, max_cycles=self.max_cycles)
         return result
         # except ExecutionError as e:
         #     self.logger.error(f"Execution failed: {str(e)}")

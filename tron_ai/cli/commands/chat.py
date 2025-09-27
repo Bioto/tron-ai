@@ -29,6 +29,9 @@ from tron_ai.cli.base import (
     with_error_handling,
     with_validation
 )
+from tron_ai.models.config import BaseXAICofig
+
+from tron_ai.utils.memory.memory import AgentMemoryManager
 
 
 class ChatSessionError(CLIError):
@@ -50,6 +53,7 @@ class ChatSession:
         self.console = Console()
         self.session_id = str(uuid.uuid4())
         self.db_manager: Optional[DatabaseManager] = None
+        self.memory_manager: Optional[AgentMemoryManager] = None
         self.agent_factory = get_agent_factory(self.console)
         
     async def initialize(self) -> None:
@@ -67,11 +71,20 @@ class ChatSession:
         self.db_manager = DatabaseManager(db_config)
         await self.db_manager.initialize()
         
+        # Initialize memory manager
+        self.memory_manager = AgentMemoryManager()
+        self.memory_manager.configure_memory(
+            enabled=True,
+            user_id="tron",
+            search_limit=5,
+            search_threshold=0.5
+        )
+        
         # Create LLM client
         self.client = get_llm_client_from_config(
-            BaseGroqConfig(model_name="deepseek-r1-distill-llama-70b"), 
-            client_name="groq"
-        )
+            BaseXAICofig(model_name="grok-3"), 
+            client_name="xai"
+        )   
     
     def _get_primary_agent(self):
         """Get the primary agent for the session."""
@@ -152,13 +165,33 @@ class ChatSession:
         from tron_ai.models.executors import ExecutorConfig
         
         if self.mode == "regular":
+            # For TronAgent, populate memory_context
+            prompt_kwargs = {}
+            if agent_instance.name == "Tron":
+                from tron_ai.agents.tron.tools import TronTools
+                import json
+                # Extract user input from query for memory search
+                user_input_part = query.split("User Input:")[-1].strip() if "User Input:" in query else query
+                memories_json = TronTools.query_memory(query=user_input_part)
+                try:
+                    memories = json.loads(memories_json)
+                    memory_str = "## Relevant Memories\n\n"
+                    if "results" in memories and memories["results"]:
+                        for mem in memories["results"]:
+                            memory_str += f"- {mem['memory']} (confidence: {mem.get('similarity', 0):.2f})\n\n"
+                    else:
+                        memory_str += "No relevant memories found yet. Our conversation history will help build this over time.\n"
+                    prompt_kwargs = {"memory_context": memory_str}
+                except json.JSONDecodeError:
+                    prompt_kwargs = {"memory_context": "Memory query failed. Using conversation context."}
+            
             executor = AgentExecutor(
                 config=ExecutorConfig(
                     client=self.client,
                     logging=True,
                 ),
             )
-            return await executor.execute(user_query=query, agent=agent_instance)
+            return await executor.execute(user_query=query, agent=agent_instance, prompt_kwargs=prompt_kwargs)
         else:
             # Swarm mode
             swarm_state = SwarmState(agents=all_agents)
@@ -298,6 +331,14 @@ class ChatSession:
             tool_calls=getattr(response, 'tool_calls', None),
             meta=None
         )
+        
+        # Store interaction in vector memory
+        if self.memory_manager:
+            await self.memory_manager.store_interaction_memory(
+                user_query=user_input,
+                agent_response=response,
+                agent_name=agent_name
+            )
     
     async def run_interactive_session(self, initial_query: Optional[str] = None) -> None:
         """Run the main interactive chat loop."""

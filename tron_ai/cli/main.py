@@ -79,6 +79,7 @@ os.environ["MEM0_TELEMETRY"] = "False"
 
 # Suppress warnings for cleaner output
 warnings.filterwarnings("ignore", category=DeprecationWarning, module="chromadb")
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
 
 @click.group(invoke_without_command=True)
